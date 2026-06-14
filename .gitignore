@@ -6,6 +6,22 @@ dist
 .turbo
 *.tsbuildinfo
 
+# TypeScript emit must never land in source trees (sources are .ts/.tsx only).
+# Guards against an accidental `tsc` (without noEmit) being committed.
+apps/web/src/**/*.js
+apps/web/src/**/*.d.ts
+apps/web/e2e/**/*.js
+apps/web/e2e/**/*.d.ts
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+!apps/web/src/vite-env.d.ts
+# Compiled config files (sources are *.config.ts; eslint.config.js is hand-written).
+**/*.config.d.ts
+**/vite.config.js
+**/vitest.config.js
+**/playwright.config.js
+/orval.config.js
+
 # Test / coverage
 coverage
 playwright-report
