@@ -30,8 +30,13 @@ export class ApiRequestError extends Error {
 
 function readCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
-  return match ? decodeURIComponent(match[1]!) : null;
+  for (const part of document.cookie.split('; ')) {
+    const eq = part.indexOf('=');
+    if (eq > -1 && part.slice(0, eq) === name) {
+      return decodeURIComponent(part.slice(eq + 1));
+    }
+  }
+  return null;
 }
 
 async function parse<T>(response: Response): Promise<T> {

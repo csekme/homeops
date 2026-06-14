@@ -44,8 +44,7 @@ def create_app(overrides: dict | None = None) -> APIFlask:
         docs_path="/api/docs" if enable_docs else None,
     )
     app.description = (
-        "HomeOps backend API — household management SaaS "
-        "(payments, documents, obligations)."
+        "HomeOps backend API — household management SaaS (payments, documents, obligations)."
     )
     app.tags = [
         {

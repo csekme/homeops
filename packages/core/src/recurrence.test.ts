@@ -41,6 +41,20 @@ describe("nextOccurrence", () => {
     expect(next!.getUTCDate()).toBe(31);
   });
 
+  it("stays at the same UTC wall time across a DST boundary (UTC-only contract)", () => {
+    // 2024-03-31 is the EU spring-forward. Evaluated in UTC, a daily rule must not
+    // drift by the local DST hour: the occurrence stays at 09:00Z, exactly 24h apart.
+    const rule = `DTSTART:20240330T090000Z\nRRULE:FREQ=DAILY`;
+    const after = new Date(Date.UTC(2024, 2, 30, 12, 0, 0)); // March 30, 12:00Z
+    const next = nextOccurrence(rule, after);
+    expect(next).not.toBeNull();
+    expect(next!.getUTCFullYear()).toBe(2024);
+    expect(next!.getUTCMonth()).toBe(2); // March
+    expect(next!.getUTCDate()).toBe(31);
+    expect(next!.getUTCHours()).toBe(9); // no DST hour shift
+    expect(next!.getTime() - Date.UTC(2024, 2, 30, 9, 0, 0)).toBe(24 * 60 * 60 * 1000);
+  });
+
   it("returns null when a COUNT-bounded rule is exhausted", () => {
     const rule = `DTSTART:20240101T000000Z\nRRULE:FREQ=YEARLY;COUNT=1`;
     const next = nextOccurrence(rule, new Date(Date.UTC(2025, 0, 1)));

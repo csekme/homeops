@@ -26,6 +26,10 @@ export class RecurrenceError extends Error {
  *
  * Dates are treated in UTC to stay DST-stable: BYMONTHDAY=31 in a 30-day month
  * is skipped by the standard (not clamped), which matches iCal semantics.
+ *
+ * Contract: recurrence is evaluated purely in UTC. Occurrences keep the same UTC
+ * wall time across DST boundaries (no local-time hour drift) — see the DST test in
+ * `recurrence.test.ts`. Local-time / `TZID`-anchored rules are out of scope for now.
  */
 export function nextOccurrence(rrule: string, after: Date): Date | null {
   if (typeof rrule !== "string" || rrule.trim() === "") {

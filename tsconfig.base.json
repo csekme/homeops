@@ -14,7 +14,6 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "baseUrl": ".",
     "paths": {
       "@homeops/core": ["./packages/core/src/index.ts"],
       "@homeops/validation": ["./packages/validation/src/index.ts"],

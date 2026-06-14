@@ -11,7 +11,6 @@ import {
   BreadcrumbPage,
 } from '@/components/ui/breadcrumb';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 
 const SEGMENT_LABEL_KEYS: Record<string, string> = {
@@ -36,7 +35,6 @@ export function AppShell() {
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
-          
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>

@@ -35,15 +35,23 @@ export class CurrencyMismatchError extends MoneyError {
 
 /**
  * Round a number to the nearest integer using banker's rounding
- * (round half to even). Pure integer/float-edge logic, no storage in float.
+ * (round half to even).
+ *
+ * The halfway check is epsilon-tolerant on purpose: a mathematically-exact `.5`
+ * produced by float arithmetic often lands a few ULPs off (e.g. `25 * 0.1` is
+ * `2.5000000000000004`). A naive `diff > 0.5` would then skip the round-to-even
+ * branch and round the wrong way, so we treat anything within a magnitude-scaled
+ * epsilon of `.5` as exactly halfway.
  */
 export function bankersRound(value: number): number {
   const floor = Math.floor(value);
   const diff = value - floor;
-  if (diff < 0.5) return floor;
-  if (diff > 0.5) return floor + 1;
-  // Exactly halfway: round to the even neighbour.
-  return floor % 2 === 0 ? floor : floor + 1;
+  const eps = Math.abs(value) * Number.EPSILON * 4 + Number.EPSILON;
+  if (Math.abs(diff - 0.5) <= eps) {
+    // Halfway: round to the even neighbour.
+    return floor % 2 === 0 ? floor : floor + 1;
+  }
+  return diff < 0.5 ? floor : floor + 1;
 }
 
 export class Money {

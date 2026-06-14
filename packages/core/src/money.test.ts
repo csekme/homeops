@@ -69,6 +69,14 @@ describe("Money multiply with banker's rounding", () => {
     expect(new Money(199, "EUR").multiply(3).toMinor()).toBe(597);
   });
 
+  it("rounds half-to-even even when the float product carries dust", () => {
+    // 25 * 0.1 = 2.5 mathematically, but lands at 2.5000000000000004 in float.
+    // Half-to-even must give 2 (even), not 3 — a naive `diff > 0.5` would round up.
+    expect(new Money(25, "EUR").multiply(0.1).toMinor()).toBe(2);
+    // 35 * 0.1 = 3.5 -> 4 (even).
+    expect(new Money(35, "EUR").multiply(0.1).toMinor()).toBe(4);
+  });
+
   it("rejects non-finite multipliers", () => {
     expect(() => new Money(100, "EUR").multiply(NaN)).toThrow(InvalidMoneyError);
   });

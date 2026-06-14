@@ -8,6 +8,13 @@ from __future__ import annotations
 
 import os
 
+# Dev-only placeholder secrets. They MUST NOT be used in production — ``ProductionConfig``
+# fails fast if they survive into a prod boot (plan §7.4: "titok nem a kódban").
+_DEV_JWT_SECRET = "dev-only-change-me"  # noqa: S105 — placeholder, rejected in prod
+_DEV_SECRET_KEK = "aG9tZW9wc19kZXZfa2VrXzAxMjM0NTY3ODlhYmNkZWY="  # noqa: S105 — see above
+# HS256 needs a key of at least the hash output size (32 bytes) to be sound (RFC 7518 §3.2).
+_MIN_JWT_SECRET_BYTES = 32
+
 
 def _bool(value: str | None, default: bool = False) -> bool:
     if value is None:
@@ -41,7 +48,7 @@ class Config:
         )
 
         # Access JWT (plan §3.5c).
-        self.JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-only-change-me")
+        self.JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", _DEV_JWT_SECRET)
         self.ACCESS_TOKEN_TTL_MINUTES = _int("ACCESS_TOKEN_TTL_MINUTES", 15)
         self.REFRESH_TOKEN_TTL_DAYS = _int("REFRESH_TOKEN_TTL_DAYS", 30)
 
@@ -64,9 +71,7 @@ class Config:
         self.MAIL_DEFAULT_LOCALE = os.environ.get("MAIL_DEFAULT_LOCALE", "hu")
 
         # SecretCipher KEK (plan §10.5) — base64 32-byte key.
-        self.SECRET_KEK = os.environ.get(
-            "SECRET_KEK", "aG9tZW9wc19kZXZfa2VrXzAxMjM0NTY3ODlhYmNkZWY="
-        )
+        self.SECRET_KEK = os.environ.get("SECRET_KEK", _DEV_SECRET_KEK)
 
         # OpenAPI docs visibility (plan §3.8 / spec §7.4).
         self.ENABLE_API_DOCS = _bool(os.environ.get("ENABLE_API_DOCS"), True)
@@ -107,6 +112,28 @@ class ProductionConfig(Config):
         super().__init__()
         # Interactive docs off by default in prod (spec §7.4 security misconfiguration).
         self.ENABLE_API_DOCS = _bool(os.environ.get("ENABLE_API_DOCS"), False)
+        self._assert_real_secrets()
+
+    def _assert_real_secrets(self) -> None:
+        """Refuse to boot prod with the dev placeholder/weak secrets (plan §7.4).
+
+        A silent fallback to the in-repo dev JWT key or KEK would let anyone forge access
+        tokens or unwrap stored secrets, so this is a hard, fail-fast error.
+        """
+        errors: list[str] = []
+        if self.JWT_SECRET_KEY == _DEV_JWT_SECRET:
+            errors.append("JWT_SECRET_KEY is still the dev placeholder")
+        elif len(self.JWT_SECRET_KEY.encode("utf-8")) < _MIN_JWT_SECRET_BYTES:
+            errors.append(
+                f"JWT_SECRET_KEY must be at least {_MIN_JWT_SECRET_BYTES} bytes for HS256"
+            )
+        if self.SECRET_KEK == _DEV_SECRET_KEK:
+            errors.append("SECRET_KEK is still the dev placeholder")
+        if errors:
+            raise RuntimeError(
+                "Insecure production configuration: " + "; ".join(errors) + ". "
+                "Set strong, unique values via the environment."
+            )
 
 
 _CONFIGS: dict[str, type[Config]] = {
