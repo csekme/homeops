@@ -1,0 +1,25 @@
+{
+  "title": "Teendők",
+  "new": "Új teendő",
+  "fields": {
+    "name": "Megnevezés",
+    "category": "Kategória",
+    "dueDate": "Esedékesség",
+    "recurrence": "Ismétlődés",
+    "assignee": "Felelős",
+    "estimatedAmount": "Becsült összeg",
+    "leadTime": "Előzetes figyelmeztetés (nap)"
+  },
+  "status": {
+    "upcoming": "Közelgő",
+    "due": "Esedékes",
+    "done": "Kész",
+    "overdue": "Lejárt",
+    "skipped": "Kihagyva"
+  },
+  "actions": {
+    "complete": "Kész",
+    "skip": "Kihagyás"
+  },
+  "empty": "Még nincs egyetlen teendő sem."
+}

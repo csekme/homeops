@@ -1,0 +1,25 @@
+{
+  "title": "Obligations",
+  "new": "New obligation",
+  "fields": {
+    "name": "Title",
+    "category": "Category",
+    "dueDate": "Due date",
+    "recurrence": "Recurrence",
+    "assignee": "Assignee",
+    "estimatedAmount": "Estimated amount",
+    "leadTime": "Lead time (days)"
+  },
+  "status": {
+    "upcoming": "Upcoming",
+    "due": "Due",
+    "done": "Done",
+    "overdue": "Overdue",
+    "skipped": "Skipped"
+  },
+  "actions": {
+    "complete": "Complete",
+    "skip": "Skip"
+  },
+  "empty": "No obligations yet."
+}

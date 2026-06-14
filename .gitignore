@@ -1,1 +1,26 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+.turbo
+*.tsbuildinfo
+
+# Test / coverage
+coverage
+playwright-report
+
+# Environment
+.env*
+!.env.example
+
+# OS
 .DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv
+.pytest_cache
+.ruff_cache
+.mypy_cache

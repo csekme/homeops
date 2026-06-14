@@ -1,0 +1,16 @@
+{
+  "title": "Expenses",
+  "new": "New expense",
+  "fields": {
+    "amount": "Amount",
+    "currency": "Currency",
+    "occurredOn": "Date",
+    "category": "Category",
+    "service": "Service"
+  },
+  "summary": {
+    "total": "Total",
+    "thisMonth": "This month"
+  },
+  "empty": "No expenses recorded yet."
+}

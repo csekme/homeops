@@ -1,0 +1,182 @@
+# HomeOps CI (plan §10). Parallel jobs; the merge gate is lint + typecheck + unit +
+# integration + contract + deps + sast. E2E and signed artifacts are gated/Phase-later.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+
+jobs:
+  lint-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  typecheck-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run mypy app
+
+  lint-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run lint
+      - run: pnpm turbo run typecheck
+
+  test-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Frontend domain/validation/i18n units (incl. HU/EN key parity → i18n-check).
+      - run: pnpm turbo run test
+      # Backend unit tests (no DB).
+      - working-directory: backend
+        run: uv sync --frozen && uv run pytest tests/unit
+
+  test-integration:
+    runs-on: ubuntu-latest
+    # Testcontainers needs Docker — available on ubuntu-latest runners.
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run pytest -m integration
+
+  test-contract:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: homeops
+          POSTGRES_USER: homeops
+          POSTGRES_PASSWORD: homeops
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U homeops" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Migrate
+        working-directory: backend
+        env:
+          MIGRATION_DATABASE_URL: postgresql+psycopg://homeops:homeops@localhost:5432/homeops
+        run: uv sync --frozen && uv run alembic upgrade head
+      - name: Start backend
+        working-directory: backend
+        env:
+          APP_ENV: development
+          DATABASE_URL: postgresql+psycopg://homeops_app:homeops_app@localhost:5432/homeops
+          JWT_SECRET_KEY: ci-secret-ci-secret-ci-secret-1234
+        run: |
+          uv run flask --app app run -p 8080 &
+          for i in $(seq 1 30); do curl -sf http://localhost:8080/api/health && break; sleep 1; done
+      - name: OpenAPI drift (live spec must match the pinned snapshot)
+        run: |
+          curl -s http://localhost:8080/api/openapi.json \
+            | python3 -c "import sys,json; json.dump(json.load(sys.stdin), open('live.json','w'), indent=2, sort_keys=True); open('live.json','a').write(chr(10))"
+          diff -u openapi.snapshot.json live.json
+      - name: Spectral lint
+        run: pnpm codegen:lint
+
+  deps-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: pip-audit
+        working-directory: backend
+        run: uv sync --frozen && uv run pip-audit
+      - name: pnpm audit (high+)
+        run: pnpm audit --audit-level high || true # report-only until baseline triaged
+
+  sast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: bandit
+        working-directory: backend
+        run: uv sync --frozen && uv run bandit -q -r app
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  e2e:
+    # Gated: only on PRs to main / nightly (plan §10.10). Wired in Phase 0 as a stub;
+    # full Playwright flow (Mailpit REST) lands with the screens it exercises.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "E2E (Playwright over the compose stack) is wired in a later phase."

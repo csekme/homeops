@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@homeops/core": ["./packages/core/src/index.ts"],
+      "@homeops/validation": ["./packages/validation/src/index.ts"],
+      "@homeops/i18n": ["./packages/i18n/src/index.ts"],
+      "@homeops/tokens": ["./packages/tokens/src/index.ts"],
+      "@homeops/types": ["./packages/types/src/index.ts"],
+      "@homeops/api-client": ["./packages/api-client/src/index.ts"]
+    }
+  }
+}

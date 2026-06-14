@@ -1,0 +1,10 @@
+# Spectral OpenAPI lint (spec §5.9, plan §3.8 / §10 test-contract).
+# Runs against openapi.snapshot.json in CI via `pnpm codegen:lint`.
+extends: ["spectral:oas"]
+rules:
+  # The dev-time servers list is intentionally omitted from the generated spec.
+  oas3-api-servers: off
+  # Operation descriptions are nice-to-have but not enforced for the MVP surface.
+  operation-description: off
+  info-contact: off
+  info-license: off

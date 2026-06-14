@@ -1,0 +1,28 @@
+{
+  "name": "homeops",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.14.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "codegen": "orval --config orval.config.ts",
+    "codegen:fetch": "curl -sk https://homeops.localhost/api/openapi.json -o openapi.snapshot.json",
+    "codegen:lint": "spectral lint openapi.snapshot.json"
+  },
+  "devDependencies": {
+    "@stoplight/spectral-cli": "^6.14.2",
+    "@types/node": "^22.10.2",
+    "orval": "^7.3.0",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

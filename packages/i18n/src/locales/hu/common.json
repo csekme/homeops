@@ -1,0 +1,18 @@
+{
+  "appName": "HomeOps",
+  "loading": "Betöltés…",
+  "save": "Mentés",
+  "cancel": "Mégse",
+  "logout": "Kijelentkezés",
+  "languageToggle": "Nyelv váltása",
+  "themeToggle": "Téma váltása",
+  "households": "Háztartások",
+  "nav": {
+    "dashboard": "Áttekintés",
+    "obligations": "Teendők",
+    "expenses": "Kiadások",
+    "services": "Szolgáltatások",
+    "documents": "Dokumentumok",
+    "settings": "Beállítások"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "appName": "HomeOps",
+  "loading": "Loading…",
+  "save": "Save",
+  "cancel": "Cancel",
+  "logout": "Log out",
+  "languageToggle": "Toggle language",
+  "themeToggle": "Toggle theme",
+  "households": "Households",
+  "nav": {
+    "dashboard": "Dashboard",
+    "obligations": "Obligations",
+    "expenses": "Expenses",
+    "services": "Services",
+    "documents": "Documents",
+    "settings": "Settings"
+  }
+}

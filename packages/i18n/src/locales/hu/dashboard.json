@@ -1,0 +1,9 @@
+{
+  "title": "Áttekintés",
+  "greeting": "Üdv újra, {{name}}!",
+  "upcoming": "Közelgő teendők",
+  "overdue": "Lejárt teendők",
+  "monthlySpend": "Havi kiadások",
+  "noUpcoming": "Nincs közelgő teendőd.",
+  "financialHidden": "A pénzügyi adatok el vannak rejtve a szerepköröd miatt."
+}

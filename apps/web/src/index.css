@@ -1,0 +1,29 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/inter';
+
+/*
+ * HomeOps web theme is sourced from @homeops/tokens (plan §3.12 step 3).
+ * The tokens package owns the OKLCH palette (:root / .dark) and the Tailwind v4
+ * `@theme inline` color/radius mapping — do NOT redefine those here, edit tokens.
+ */
+@import '@homeops/tokens/theme.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Inter Variable', sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

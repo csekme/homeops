@@ -1,0 +1,20 @@
+{
+  "title": "Services",
+  "new": "New service",
+  "fields": {
+    "providerName": "Provider",
+    "fee": "Fee",
+    "currency": "Currency",
+    "billingCycle": "Billing cycle",
+    "contractEnd": "Contract end",
+    "cancellationDeadline": "Cancellation deadline"
+  },
+  "billingCycle": {
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "quarterly": "Quarterly",
+    "yearly": "Yearly",
+    "oneTime": "One-time"
+  },
+  "empty": "No services recorded yet."
+}

@@ -1,0 +1,24 @@
+# gitleaks config (plan §10 sast). Extends the default ruleset and allowlists the
+# KNOWN dev-only placeholders living in committed config/example files. Real secrets
+# never go in these files — they live in the gitignored `.env` / CI secrets.
+title = "HomeOps gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Dev-only placeholders, not real secrets"
+paths = [
+  '''\.env\.example''',
+  '''docker-compose\.yml''',
+  '''docs/devex\.md''',
+  '''backend/app/config\.py''',                       # env-defaulted dev values
+  '''backend/migrations/versions/.*\.py''',           # dev app-role bootstrap password
+  '''backend/tests/.*''',                             # throwaway test fixtures
+]
+regexes = [
+  '''aG9tZW9wc19kZXZfa2VrXzAxMjM0NTY3ODlhYmNkZWY=''', # dev SECRET_KEK (base64 placeholder)
+  '''homeops:homeops''',                              # dev Postgres credentials
+  '''homeops_app:homeops_app''',                      # dev app-role credentials
+  '''dev-only-change-me''',                           # dev JWT secret default
+]
