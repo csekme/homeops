@@ -1,0 +1,19 @@
+// Template: thin page. Renders + delegates to the feature hook.
+// Replace __Feature__ (PascalCase) and __feature__ (kebab/camel).
+// No data fetching, submit logic, validation, or field renaming here.
+
+import { AuthLayout } from '@/components/layouts/auth-layout';
+import { FormError } from '@/components/form-error';
+import { __Feature__Form } from './components/__feature__-form';
+import { use__Feature__Form } from './use-__feature__-form';
+
+export function __Feature__Page() {
+  const { form, onSubmit, isPending, error } = use__Feature__Form();
+
+  return (
+    <AuthLayout title="__Feature__">
+      <__Feature__Form form={form} onSubmit={onSubmit} isPending={isPending} />
+      {error && <FormError error={error} />}
+    </AuthLayout>
+  );
+}

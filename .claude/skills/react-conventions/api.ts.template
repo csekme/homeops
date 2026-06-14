@@ -1,0 +1,14 @@
+// Template: feature API client. Endpoint calls only — transport concerns.
+// Knows nothing about form shapes or component state. Takes/returns DTOs.
+// Replace __Feature__ (PascalCase) and __feature__ (kebab/camel).
+
+import { httpClient } from '@/lib/http-client';
+import type { __Feature__Request, __Feature__Dto } from '@/types';
+
+export const api = {
+  submit__Feature__: (body: __Feature__Request) =>
+    httpClient.post<__Feature__Dto>('/__feature__', body),
+
+  get__Feature__: (id: string) =>
+    httpClient.get<__Feature__Dto>(`/__feature__/${id}`),
+};

@@ -1,0 +1,28 @@
+// Template: mappers. The ONLY place form-shape <-> API-DTO translation happens.
+// No React, no side effects, no business rules. Pure functions only.
+// Replace __Feature__ (PascalCase) and __feature__ (kebab/camel).
+
+import type { __Feature__FormValues } from './use-__feature__-form';
+import type { __Feature__Request, __Feature__Dto } from '@/types';
+
+// form values (camelCase) -> API request (often snake_case)
+export function to__Feature__Request(v: __Feature__FormValues): __Feature__Request {
+  return {
+    email: v.email,
+    // map remaining fields here, e.g. display_name: v.displayName
+  };
+}
+
+// API response DTO -> view model the UI consumes
+export function from__Feature__Dto(dto: __Feature__Dto): __Feature__ViewModel {
+  return {
+    id: dto.id,
+    email: dto.email,
+    // displayName: dto.display_name,
+  };
+}
+
+export interface __Feature__ViewModel {
+  id: string;
+  email: string;
+}
