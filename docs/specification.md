@@ -200,18 +200,212 @@ Elvek a kódminőséghez (amit kértél):
 
 ### 5.4 Frontend (React + shadcn/ui)
 - TypeScript, komponens-alapú, **szerver-állapot** kezelése pl. TanStack Query-vel (cache + újratöltés), nem nyers fetch szétszórva.
-- shadcn/ui a dizájn-rendszer alapja (konzisztens, akadálymentes komponensek).
+- shadcn/ui a dizájn-rendszer alapja (konzisztens, akadálymentes komponensek) — **web-only** marad (5.8).
 - i18n már az elején (magyar/angol) — később a SaaS-nál hasznos.
 - Az **access token csak memóriában** él (nem localStorage — XSS-kockázat), a frissítés httpOnly cookie-val (lásd 7.1).
+- A web a monorepo **`apps/web`** csomagja; a prezentáció-mentes rétegeket (`api-client`, `core`, `validation`, `i18n`, `tokens`) a `packages/`-ből húzza (5.8). A szerver-állapot hookjai a backend OpenAPI-jából **generált** `api-client`-ből jönnek (5.9).
 
 ### 5.5 Mobil (React Native)
 - A token a platform **secure store**-jában (iOS Keychain / Android Keystore), nem sima async storage-ban.
 - Push: FCM (Android) + APNs (iOS), device-token regisztráció a backend felé.
-- A web és mobil **ugyanazt a REST API-t** használja → egyetlen szerződés (contract), kevesebb duplikáció.
+- A mobil a monorepo **`apps/mobile`** csomagja (**Expo**); ugyanazokat a `packages/` modulokat fogyasztja, mint a web (5.8), de saját **RN UI-réteggel** (**NativeWind**, a `tokens` témából) — shadcn nélkül.
+- A web és mobil **ugyanazt a REST API-t** használja → egyetlen, **OpenAPI-ból generált** szerződés (5.9), kevesebb duplikáció.
 
 ### 5.6 Háttérfeladatok
 - **Ütemező** (pl. APScheduler egyszerűbb kezdéshez, vagy Celery beat skálázáshoz): naponta pásztázza a közelgő esedékességeket és feltölti az értesítés-outboxot.
 - **Worker:** az outboxból idempotensen küldi az e-mailt/pusht, és ez hívja a külső tárhely API-kat is. Külön skálázható az API-tól.
+
+### 5.7 Fejlesztői környezet (DevEx)
+
+Cél: a lokális környezet **egyetlen paranccsal** (`docker compose up`) álljon fel, és a lehető legjobban hasonlítson az éles felálláshoz — így a környezet-specifikus hibák (cookie, HTTPS, CORS, e-mail-renderelés) már fejlesztés közben kiderülnek, nem élesben.
+
+A dev-stack komponensei `docker-compose`-ban:
+- **PostgreSQL** — ugyanaz a fő verzió, mint élesben (hogy az RLS és a migrációk valósághűen teszteljenek).
+- **Mailpit** — fejlesztői SMTP-elkapó (lásd lent).
+- **nginx reverse proxy** — egy-origós HTTPS belépési pont (lásd lent).
+- A **frontend (Vite, `:5173`)** és a **backend (Flask, `:8080`)** a **host gépen** fut (gyors HMR, natív debugger); a proxy `host.docker.internal`-on át éri el őket. (A Postgres/Mailpit/nginx konténerben megy.)
+
+#### Egy-origós HTTPS reverse proxy
+
+Fejlesztés közben minden egy **egyedi dev-domainen**, a `https://homeops.localhost`-on megy keresztül, **portok nélkül**: a `/` a frontendre, a `/api/` a backendre irányul. Egy nginx konténer terminálja a TLS-t (mkcert-tel kiállított, lokálisan megbízható tanúsítvánnyal), és a 80→443 átirányítást is kezeli.
+
+```nginx
+# Single-origin HTTPS: Frontend=/, API=/api/
+upstream frontend { server host.docker.internal:5173; keepalive 32; }
+upstream backend  { server host.docker.internal:8080; keepalive 32; }
+
+map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+
+server {
+  listen 80;
+  server_name homeops.localhost;
+  return 301 https://$host$request_uri;     # mindig HTTPS-re terelünk
+}
+
+server {
+  listen 443 ssl http2;
+  server_name homeops.localhost;
+
+  ssl_certificate     /etc/nginx/certs/homeops.localhost.pem;
+  ssl_certificate_key /etc/nginx/certs/homeops.localhost-key.pem;
+  ssl_protocols TLSv1.2 TLSv1.3;
+
+  client_max_body_size 16m;                 # ld. a body-limit megjegyzést lent
+
+  location = /api { return 301 /api/; }     # csupasz /api → /api/
+
+  location /api/ {                          # API a backendhez
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_pass http://backend;
+  }
+
+  location / {                              # minden más a frontendhez (+ Vite HMR WebSocket)
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_pass http://frontend;
+  }
+}
+```
+
+```yaml
+# docker-compose.yml (dev)
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: homeops
+      POSTGRES_USER: homeops
+      POSTGRES_PASSWORD: homeops
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"   # SMTP (ide küld az app dev-ben)
+      - "8025:8025"   # web UI
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx
+    volumes:
+      - ./reverse-proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "80:80"
+      - "443:443"
+
+volumes:
+  pgdata:
+```
+
+**Miért nem csak kényelmi dolog ez — architekturális szinergiák:**
+- **Same-origin = nincs CORS**, és pont a prod-szerű felállás. A frontend és az API egy originből látszik, így a 7.1-es **`SameSite` refresh-cookie** stratégia dev-ben is élesen működik, külön CORS-konfig nélkül.
+- **`Secure` cookie csak HTTPS-en él** — a refresh token `HttpOnly; Secure; SameSite` cookie-ban van (7.1), amit a böngésző plain HTTP-n el sem mentene. A dev-HTTPS-szel a **valódi auth-flow tesztelhető lokálisan**, nem kell „dev-only" kiskaput hagyni a kódban.
+- **`X-Forwarded-Proto https`** — a Flask mögött a **`ProxyFix`** middleware olvassa, hogy a backend tudja: proxy + HTTPS mögött van (helyes scheme a generált linkekben, pl. aktiváló/meghívó URL, és helyes cookie-flag-ek).
+- **WebSocket upgrade** (`Upgrade`/`Connection`) — a Vite **HMR** a proxyn keresztül is működjön.
+
+**Tanúsítvány és domain:** a `homeops.localhost` egyedi dev-domain a `127.0.0.1`-re mutat (a `*.localhost` a legtöbb böngészőben automatikusan a loopbackra resolve-ol; a teljes kompatibilitásért `/etc/hosts`-ba is felvesszük: `127.0.0.1 homeops.localhost`). A tanúsítványt **mkcert** állítja ki erre a domainre — egyszer `mkcert -install` (lokális CA telepítése), majd `mkcert homeops.localhost` (a fenti `.pem` fájlokat adja). Így nincs böngésző-figyelmeztetés, és a `Secure` cookie / HTTPS valósághűen működik. A cert fejlesztőnként, a repón kívül generálódik; a privát kulcs **soha nem kerül verziókövetésbe** (`certs/` a `.gitignore`-ban). A domain könnyen átírható (pl. `app.homeops.test`), ekkor a `server_name`, az `/etc/hosts` és a mkcert-paraméter is követi.
+
+> **Body-limit megjegyzés:** mivel a HomeOps **nem proxyzza és nem tárolja a fájl-bájtokat** (3.6, 8. fejezet), a reverse proxynak nincs szüksége nagy `client_max_body_size`-ra — pár MB (JSON + esetleg avatar) bőven elég. A nagy fájlok közvetlenül a felhasználó felhőjébe, a tárhely-szolgáltatóhoz mennek, nem a HomeOpson át.
+
+#### Mailpit — fejlesztői e-mail
+
+Az alkalmazás SMTP-konfigja **környezetfüggő**: **dev/test → Mailpit** (`:1025` SMTP, `:8025` web UI), **prod → tranzakciós e-mail szolgáltató** (Postmark / SES / SendGrid / Mailgun). A küldés egységes **SMTP-absztrakció** mögött van — a célpont csak konfiguráció.
+- A Mailpit minden kimenő levelet **elkap** (sosem megy valódi címzettnek) és a webes UI-n **rendereli** (HTML- és mobil-előnézet, forrás, fejlécek) — így az aktiváló, meghívó és digest e-mailek vizuálisan ellenőrizhetők.
+- **REST API**-ja van: az E2E-tesztek ebből olvassák ki az aktiváló-/meghívó-linket, és viszik végig a flow-t (lásd 9.).
+- **Csak fejlesztői/teszt eszköz — éles környezetbe nem kerül.**
+
+> A valódi prod-belépési pont (TLS-termináció, ingress, CA-tanúsítvány pl. Let's Encrypttel) élesben külön kérdés. A dev reverse proxy ennek a **lokális, egyszerűsített** megfelelője; a cél a prod-hűség, nem a prod-konfig másolása.
+
+### 5.8 Kód-megosztás web és mobil között (monorepo)
+
+A web (React) és a mobil (React Native) ugyanazt a domaint és API-t szolgálja ki. A cél a redundancia minimalizálása **anélkül**, hogy a natív élményt feláldoznánk.
+
+**Vezérelv:** a **prezentáció (UI) platformfüggő marad, minden alatta közös.** A shadcn/ui (a web dizájn-rendszere, 5.4) **DOM-alapú** (Radix + Tailwind) → React Native-ben nem fut; a mobil saját primitíveket használ (`View`, `Text`, `Pressable`). Ezért a komponens-réteget platformonként építjük, de a **dizájn-tokeneket** (szín, spacing, tipográfia) megosztjuk, hogy a két felület vizuálisan rokon legyen.
+
+Monorepo struktúra (**pnpm workspaces + Turborepo**):
+
+```
+homeops/
+  apps/
+    web/         # React + Vite + shadcn/ui (5.4)
+    mobile/      # React Native (Expo) (5.5)
+  packages/
+    types/       # API DTO-k és domain típusok — OpenAPI-ból generálva (5.9)
+    api-client/  # típusos API kliens + TanStack Query hookok (web és RN is futtatja)
+    core/        # tiszta üzleti logika: Money, RRULE-számítás, státusz-derivált, jogosultság-helper
+    validation/  # Zod sémák (űrlap + input)
+    i18n/        # fordítások + i18n konfig
+    tokens/      # dizájn-tokenek — a web Tailwind- és a mobil RN-témájának közös forrása
+  package.json   # workspaces
+  turbo.json     # build/test pipeline + cache
+```
+
+Mi közös és mi platformfüggő:
+
+| Réteg | Megosztott? | Megjegyzés |
+|---|---|---|
+| Domain típusok / DTO | ✅ `types` | OpenAPI-ból generálva (5.9), nincs kézi drift |
+| API-kliens + szerver-állapot (TanStack Query) | ✅ `api-client` | TanStack Query RN-ben is fut; csak `fetch` kell |
+| Üzleti logika (Money, RRULE, státusz, jogosultság) | ✅ `core` | tiszta TS, nincs DOM/natív függés |
+| Validáció (Zod) | ✅ `validation` | ugyanaz az input-szabály mindkét kliensen |
+| i18n szövegek | ✅ `i18n` | |
+| Dizájn-tokenek | ✅ `tokens` | a render viszont platformfüggő |
+| UI-komponensek | ❌ platformfüggő | web: shadcn/ui · mobil: RN UI-réteg |
+| Navigáció | ❌ platformfüggő | web: React Router · mobil: Expo Router / React Navigation |
+| Platform-API (tár, push) | ❌ platformfüggő | web: memória/cookie · mobil: SecureStore, FCM/APNs |
+
+Elvek:
+- A megosztott csomagok **prezentáció-mentesek** (nincs DOM-, nincs RN-import) — ez tartja tisztán a határt és teszi tesztelhetővé. A `core` és `validation` **egyszer** unit-tesztelt, mindkét kliens élvezi (egyezik a 9. unit-céllal).
+- A mobil UI **NativeWind**-del veszi át a `tokens` témát (Tailwind-szerű osztályok RN-ben), így ugyanazt a dizájn-nyelvet beszéli, mint a webes shadcn — natív érzettel.
+
+### 5.9 API-szerződés: OpenAPI és kódgenerálás
+
+A web és a mobil **egyetlen REST API-t** fogyaszt (5.5). Hogy ez a szerződés **drift-mentes** legyen, a backend **OpenAPI 3** specet ad, és abból **generáljuk** a frontend típusait és kliensét. Egy forrás → nincs kézi szinkron a backend, a web és a mobil között.
+
+```mermaid
+flowchart LR
+    S["Flask sémák<br/>(Pydantic / Marshmallow)"] --> O["OpenAPI 3 spec<br/>/api/openapi.json"]
+    O --> G["orval codegen"]
+    G --> T["packages/types"]
+    G --> C["packages/api-client<br/>(TanStack Query hookok)"]
+    T --> W["apps/web (shadcn/ui)"]
+    T --> M["apps/mobile (RN)"]
+    C --> W
+    C --> M
+```
+
+**Backend (Flask) — code-first:**
+- A request/response **sémák** (Pydantic vagy Marshmallow) egyszerre három dolgot adnak: (1) input-validáció a vékony controllerben (5.3), (2) response-szerializáció, (3) az OpenAPI spec forrása. Egy séma, három haszon — DRY.
+- Eszköz: **APIFlask** (Pydantic-alapú) — automatikus OpenAPI 3 + interaktív docs. (Alternatíva, ha Marshmallow-t preferálunk: flask-smorest.)
+- Dev-időben (a proxyn keresztül, 5.7):
+  - Nyers spec: `GET https://homeops.localhost/api/openapi.json`
+  - Swagger UI: `https://homeops.localhost/api/docs`
+  - ReDoc: `https://homeops.localhost/api/redoc`
+- **Prod:** az interaktív docs **alapból kikapcsolva vagy auth mögött** (7.4 — security misconfiguration). A spec belső eszköz, nem publikus felület.
+
+**Frontend / mobil — codegen:**
+- Az `openapi.json`-ból **orval** generálja a `packages/api-client`-be a **TanStack Query hookokat** és a `packages/types`-ba a típusokat. (A web már TanStack Query-t használ, 5.4 — az orval pontosan ezt adja, web és RN alatt egyaránt.)
+- Így egy backend-endpoint változása → újragenerálás → a web és a mobil **fordításidőben** jelez, ha valami elromlott (típushiba), nem futásidőben.
+- Alternatíva: `openapi-typescript` + `openapi-fetch` (könnyebb, csak típus + fetch), ha nem kell hook-generálás.
+
+**CI / minőség:**
+- A repó tárolja a generált klienst; egy CI-lépés **újragenerál és diffel** — ha eltér, a build elhasal (drift-detekció).
+- A spec linttelhető (pl. Spectral).
+- Ez adja a 9. **„API/contract" teszt** gépi alapját: a szerződés ellenőrzött igazság, nem dokumentáció-folklór.
 
 ---
 
@@ -423,6 +617,7 @@ Az MVP-t úgy érdemes szabni, hogy a **mag-érték** (átláthatóság + emlék
 
 **0. fázis — Alapozás**
 - App-factory, réteges váz, PostgreSQL + migráció (pl. Alembic), CI (lint + teszt + függőség-szken).
+- Dockerizált fejlesztői környezet: `docker-compose` (PostgreSQL + Mailpit + nginx reverse proxy, egy-origós HTTPS) — lásd 5.7.
 - Auth (regisztráció, login, token-páros, RLS bekapcsolása).
 - Regisztráció során a user kap egy aktiváló email-t email-ben amivel validáljuk a felhasználó email párost. Csak aktiválás után tud majd belépni.
 
@@ -451,8 +646,8 @@ Az MVP-t úgy érdemes szabni, hogy a **mag-érték** (átláthatóság + emlék
 **Tesztelési stratégia (végig, minden fázisban):**
 - **Unit:** domain + service réteg (itt cél a magas lefedettség, mert itt az üzleti szabály).
 - **Integrációs:** DB-vel (pl. Testcontainers / éles-szerű Postgres), hogy az RLS és a repository tényleg jól viselkedjen.
-- **API/contract:** a végpontok szerződése (a web és mobil közös fogyasztói).
-- **E2E:** a kritikus folyamatokra (regisztráció→háztartás→teendő→értesítés, connector-bekötés).
+- **API/contract:** a végpontok szerződése **OpenAPI-ból** (5.9); CI-ben drift-ellenőrzés (a generált kliens egyezik-e a speccel), hogy a web és mobil közös fogyasztói ne csússzanak szét.
+- **E2E:** a kritikus folyamatokra (regisztráció→háztartás→teendő→értesítés, connector-bekötés). Az e-mailes lépéseket (aktiválás, meghívó) a **Mailpit REST API**-jából kiolvasott linkkel automatizáljuk (lásd 5.7).
 - **Biztonsági:** authz-tesztek (egy háztartás tagja ne lásson más háztartást), reuse-detekció, és statikus elemzés a CI-ban.
 
 ---
