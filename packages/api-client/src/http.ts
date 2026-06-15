@@ -9,7 +9,13 @@
 
 import type { ApiError, RefreshResponse } from '@homeops/types';
 
-import { clearAccessToken, getAccessToken, setAccessToken } from './token-store';
+import {
+  clearAccessToken,
+  getAccessToken,
+  isAccessTokenExpiring,
+  notifySessionExpired,
+  setAccessToken,
+} from './token-store';
 
 let apiBaseUrl = '/api';
 
@@ -104,10 +110,27 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     });
   };
 
+  // Proactive: if the access token is about to expire, refresh it *before* sending so
+  // the request doesn't waste a round-trip on a guaranteed 401 (single-flight shared).
+  if (!options.skipAuthRetry && getAccessToken() && isAccessTokenExpiring()) {
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) {
+      notifySessionExpired();
+      throw new ApiRequestError(401, 'Session expired');
+    }
+  }
+
   let response = await send();
+
+  // Reactive fallback: a 401 we didn't anticipate (e.g. server-side revocation, or an
+  // unparseable expiry). Refresh once and retry; if that fails, the session is gone.
   if (response.status === 401 && !options.skipAuthRetry) {
     const refreshed = await refreshAccessToken();
-    if (refreshed) response = await send();
+    if (refreshed) {
+      response = await send();
+    } else {
+      notifySessionExpired();
+    }
   }
   return parse<T>(response);
 }

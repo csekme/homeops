@@ -2,7 +2,12 @@ import './index.css';
 import '@/lib/i18n';
 import '@/lib/zod-i18n';
 
-import { configureApiClient } from '@homeops/api-client';
+import {
+  clearAccessToken,
+  configureApiClient,
+  meQueryKey,
+  setOnSessionExpired,
+} from '@homeops/api-client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -18,6 +23,14 @@ import { ThemeProvider } from '@/lib/theme';
 
 // Same-origin behind the reverse proxy → relative `/api` base (plan §3.12).
 configureApiClient({ baseUrl: '/api' });
+
+// When a refresh ultimately fails (refresh token expired/revoked/reused), drop the
+// session: clear the in-memory token and mark `me` as null so <RequireAuth> redirects
+// to /login. Setting the cache (rather than removing it) keeps it fresh → no refetch loop.
+setOnSessionExpired(() => {
+  clearAccessToken();
+  queryClient.setQueryData(meQueryKey, null);
+});
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
