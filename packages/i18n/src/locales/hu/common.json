@@ -4,6 +4,7 @@
   "save": "Mentés",
   "cancel": "Mégse",
   "logout": "Kijelentkezés",
+  "sessionExpired": "A munkamenet lejárt. Jelentkezz be újra.",
   "languageToggle": "Nyelv váltása",
   "themeToggle": "Téma váltása",
   "households": "Háztartások",

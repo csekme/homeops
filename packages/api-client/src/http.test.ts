@@ -162,7 +162,7 @@ describe('apiFetch — reactive 401 retry', () => {
 /* ------------------------------------------------- failed refresh → logout */
 
 describe('apiFetch — failed refresh fires the session-expired handler', () => {
-  it('proactive path: refresh fails → handler called, throws 401, no request sent', async () => {
+  it('proactive path: refresh fails → handler called (wasAuthenticated), throws 401, no request sent', async () => {
     const onExpired = vi.fn();
     setOnSessionExpired(onExpired);
     const mock = installFetch({ refreshStatus: 401 });
@@ -173,17 +173,28 @@ describe('apiFetch — failed refresh fires the session-expired handler', () => 
       status: 401,
     });
     expect(onExpired).toHaveBeenCalledTimes(1);
+    expect(onExpired).toHaveBeenCalledWith({ wasAuthenticated: true });
     expect(mock.meCalls()).toHaveLength(0); // bailed before the doomed request
     expect(getAccessToken()).toBeNull(); // refresh cleared it
   });
 
-  it('reactive path: 401 then failed refresh → handler called and error thrown', async () => {
+  it('reactive path with a session: 401 then failed refresh → handler called (wasAuthenticated: true)', async () => {
     const onExpired = vi.fn();
     setOnSessionExpired(onExpired);
     installFetch({ refreshStatus: 401, meStatuses: [401] });
-    setAccessToken(makeJwt(900)); // fresh → reactive path
+    setAccessToken(makeJwt(900)); // fresh token present → real session lost
 
     await expect(apiFetch('/auth/me')).rejects.toBeInstanceOf(ApiRequestError);
-    expect(onExpired).toHaveBeenCalledTimes(1);
+    expect(onExpired).toHaveBeenCalledWith({ wasAuthenticated: true });
+  });
+
+  it('reactive path without a session (boot probe): 401 then failed refresh → wasAuthenticated: false', async () => {
+    const onExpired = vi.fn();
+    setOnSessionExpired(onExpired);
+    installFetch({ refreshStatus: 401, meStatuses: [401] });
+    // no setAccessToken → request carried no token (first-visit / boot probe)
+
+    await expect(apiFetch('/auth/me')).rejects.toBeInstanceOf(ApiRequestError);
+    expect(onExpired).toHaveBeenCalledWith({ wasAuthenticated: false });
   });
 });

@@ -63,12 +63,24 @@ function base64UrlToBase64(value: string): string {
 /* layer calls it when a refresh fails for an authenticated request.                   */
 /* ---------------------------------------------------------------------------------- */
 
-let sessionExpiredHandler: (() => void) | null = null;
+/** Context passed to the session-expired handler. */
+export interface SessionExpiredInfo {
+  /**
+   * True when the failed request actually carried a session (so the user was logged in
+   * and got kicked out). False for first-visit / boot probes where there was never a
+   * token — the host can then redirect silently instead of showing a "logged out" notice.
+   */
+  wasAuthenticated: boolean;
+}
 
-export function setOnSessionExpired(handler: (() => void) | null): void {
+type SessionExpiredHandler = (info: SessionExpiredInfo) => void;
+
+let sessionExpiredHandler: SessionExpiredHandler | null = null;
+
+export function setOnSessionExpired(handler: SessionExpiredHandler | null): void {
   sessionExpiredHandler = handler;
 }
 
-export function notifySessionExpired(): void {
-  sessionExpiredHandler?.();
+export function notifySessionExpired(info: SessionExpiredInfo): void {
+  sessionExpiredHandler?.(info);
 }

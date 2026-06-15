@@ -110,12 +110,16 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     });
   };
 
+  // Whether this request started with a session — drives the "logged out" vs silent
+  // distinction when a refresh ultimately fails (boot/first-visit probes carry no token).
+  const wasAuthenticated = getAccessToken() !== null;
+
   // Proactive: if the access token is about to expire, refresh it *before* sending so
   // the request doesn't waste a round-trip on a guaranteed 401 (single-flight shared).
-  if (!options.skipAuthRetry && getAccessToken() && isAccessTokenExpiring()) {
+  if (!options.skipAuthRetry && wasAuthenticated && isAccessTokenExpiring()) {
     const refreshed = await refreshAccessToken();
     if (!refreshed) {
-      notifySessionExpired();
+      notifySessionExpired({ wasAuthenticated: true });
       throw new ApiRequestError(401, 'Session expired');
     }
   }
@@ -129,7 +133,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     if (refreshed) {
       response = await send();
     } else {
-      notifySessionExpired();
+      notifySessionExpired({ wasAuthenticated });
     }
   }
   return parse<T>(response);
