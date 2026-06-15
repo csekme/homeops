@@ -1,0 +1,9 @@
+{
+  "title": "Dashboard",
+  "greeting": "Welcome back, {{name}}!",
+  "upcoming": "Upcoming obligations",
+  "overdue": "Overdue obligations",
+  "monthlySpend": "Monthly spend",
+  "noUpcoming": "You have no upcoming obligations.",
+  "financialHidden": "Financial data is hidden for your role."
+}

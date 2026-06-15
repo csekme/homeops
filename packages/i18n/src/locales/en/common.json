@@ -1,0 +1,19 @@
+{
+  "appName": "HomeOps",
+  "loading": "Loading…",
+  "save": "Save",
+  "cancel": "Cancel",
+  "logout": "Log out",
+  "sessionExpired": "Your session has expired. Please sign in again.",
+  "languageToggle": "Toggle language",
+  "themeToggle": "Toggle theme",
+  "households": "Households",
+  "nav": {
+    "dashboard": "Dashboard",
+    "obligations": "Obligations",
+    "expenses": "Expenses",
+    "services": "Services",
+    "documents": "Documents",
+    "settings": "Settings"
+  }
+}

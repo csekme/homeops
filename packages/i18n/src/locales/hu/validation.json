@@ -1,0 +1,10 @@
+{
+  "required": "Kötelező mező.",
+  "email": "Érvénytelen e-mail cím.",
+  "minLength": "Legalább {{min}} karakter szükséges.",
+  "maxLength": "Legfeljebb {{max}} karakter lehet.",
+  "currency": "Háromjegyű ISO-4217 pénznemkód szükséges.",
+  "integer": "Egész szám szükséges.",
+  "date": "Érvényes dátum szükséges (ÉÉÉÉ-HH-NN).",
+  "invalid": "Érvénytelen érték."
+}

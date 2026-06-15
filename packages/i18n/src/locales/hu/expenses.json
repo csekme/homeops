@@ -1,0 +1,16 @@
+{
+  "title": "Kiadások",
+  "new": "Új kiadás",
+  "fields": {
+    "amount": "Összeg",
+    "currency": "Pénznem",
+    "occurredOn": "Dátum",
+    "category": "Kategória",
+    "service": "Szolgáltatás"
+  },
+  "summary": {
+    "total": "Összesen",
+    "thisMonth": "Ebben a hónapban"
+  },
+  "empty": "Még nincs rögzített kiadás."
+}

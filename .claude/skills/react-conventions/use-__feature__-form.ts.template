@@ -1,0 +1,46 @@
+// Template: feature hook. Owns react-hook-form + the mutation/query + navigation.
+// Returns a curated surface to the page — not the whole mutation object.
+// Replace __Feature__ (PascalCase) and __feature__ (kebab/camel).
+
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { z } from 'zod';
+
+import { api } from './api';
+import { to__Feature__Request } from './mappers';
+
+// Schema is the source of truth; the form-values type is derived from it.
+export const __feature__Schema = z.object({
+  // example fields — replace with the real ones
+  email: z.string().email(),
+});
+
+export type __Feature__FormValues = z.infer<typeof __feature__Schema>;
+
+export function use__Feature__Form() {
+  const navigate = useNavigate();
+
+  const form = useForm<__Feature__FormValues>({
+    resolver: zodResolver(__feature__Schema),
+    defaultValues: {
+      email: '',
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: (values: __Feature__FormValues) =>
+      api.submit__Feature__(to__Feature__Request(values)),
+    onSuccess: () => navigate('/'),
+  });
+
+  const onSubmit = form.handleSubmit((values) => mutation.mutate(values));
+
+  return {
+    form,
+    onSubmit,
+    isPending: mutation.isPending,
+    error: mutation.error,
+  };
+}

@@ -1,0 +1,51 @@
+# HomeOps — dev stack (spec §5.7): Postgres + Mailpit + nginx single-origin HTTPS.
+# Frontend (Vite :5173) and backend (Flask :8080) run on the HOST; nginx reaches
+# them via host.docker.internal. Everything is exposed through https://homeops.localhost.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: homeops
+      POSTGRES_USER: homeops
+      POSTGRES_PASSWORD: homeops
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U homeops -d homeops"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"   # SMTP (the app sends here in dev)
+      - "8025:8025"   # web UI
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: homeops-nginx
+    depends_on:
+      - db
+      - mailpit
+    volumes:
+      - ./reverse-proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

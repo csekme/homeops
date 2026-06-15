@@ -1,0 +1,20 @@
+{
+  "title": "Szolgáltatások",
+  "new": "Új szolgáltatás",
+  "fields": {
+    "providerName": "Szolgáltató",
+    "fee": "Díj",
+    "currency": "Pénznem",
+    "billingCycle": "Számlázási ciklus",
+    "contractEnd": "Szerződés vége",
+    "cancellationDeadline": "Felmondási határidő"
+  },
+  "billingCycle": {
+    "weekly": "Heti",
+    "monthly": "Havi",
+    "quarterly": "Negyedéves",
+    "yearly": "Éves",
+    "oneTime": "Egyszeri"
+  },
+  "empty": "Még nincs rögzített szolgáltatás."
+}
