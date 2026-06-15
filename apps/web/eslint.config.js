@@ -18,6 +18,8 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.browser,
+      // Disambiguate the TSConfig root (the monorepo root has its own flat config).
+      parserOptions: { tsconfigRootDir: import.meta.dirname },
     },
     plugins: {
       'react-hooks': reactHooks,

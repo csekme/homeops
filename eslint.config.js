@@ -10,6 +10,10 @@ export default tseslint.config(
   {
     files: ['packages/**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended, security.configs.recommended],
+    languageOptions: {
+      // Disambiguate the TSConfig root (this repo has a second flat config in apps/web).
+      parserOptions: { tsconfigRootDir: import.meta.dirname },
+    },
     rules: {
       'no-restricted-imports': [
         'error',
