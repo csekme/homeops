@@ -16,6 +16,7 @@
       "title": "Set up your authenticator app",
       "instruction": "Scan the QR code with Google or Microsoft Authenticator.",
       "manualEntry": "Or enter this key manually:",
+      "copyKey": "Tap the key to copy it",
       "codeLabel": "6-digit code",
       "confirmButton": "Confirm"
     },

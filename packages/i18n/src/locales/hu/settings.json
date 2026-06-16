@@ -16,6 +16,7 @@
       "title": "Hitelesítő alkalmazás beállítása",
       "instruction": "Olvasd be a QR-kódot a Google vagy Microsoft Authenticator alkalmazással.",
       "manualEntry": "Vagy írd be kézzel ezt a kulcsot:",
+      "copyKey": "Koppints a kulcsra a másoláshoz",
       "codeLabel": "6 jegyű kód",
       "confirmButton": "Megerősítés"
     },

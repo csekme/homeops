@@ -53,11 +53,16 @@ class LoginOut(Schema):
     user = Nested(UserOut)
     mfa_required = Boolean()
     challenge_token = String()
+    # Mobile clients (X-Client-Type: mobile) get the refresh token in the body instead of a
+    # cookie; web clients never see this field (it stays in the HttpOnly cookie).
+    refresh_token = String()
 
 
 class RefreshOut(Schema):
     access_token = String()
     token_type = String()
+    # Mobile only: the rotated refresh token (body-refresh strategy). Absent for web.
+    refresh_token = String()
 
 
 # ── Two-factor authentication (TOTP) ────────────────────────────────────────────────

@@ -1,6 +1,10 @@
 {
   "title": "Áttekintés",
   "greeting": "Üdv újra, {{name}}!",
+  "subtitle": "Itt egy gyors áttekintés a háztartásodról.",
+  "quickActions": "Gyors műveletek",
+  "widgetsTitle": "A háztartásod egy pillantásra",
+  "widgetsBody": "A közelgő teendők, a havi kiadások és az emlékeztetők hamarosan itt jelennek meg.",
   "upcoming": "Közelgő teendők",
   "overdue": "Lejárt teendők",
   "monthlySpend": "Havi kiadások",

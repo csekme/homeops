@@ -55,6 +55,9 @@
           },
           "user": {
             "$ref": "#/components/schemas/UserOut"
+          },
+          "refresh_token": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -90,6 +93,9 @@
             "type": "string"
           },
           "token_type": {
+            "type": "string"
+          },
+          "refresh_token": {
             "type": "string"
           }
         },

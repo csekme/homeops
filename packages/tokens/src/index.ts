@@ -35,6 +35,15 @@ export const colors = {
   destructive: "oklch(0.577 0.245 27.325)",
   destructiveForeground: "oklch(0.97 0.014 254.604)",
 
+  success: "oklch(0.627 0.194 149.2)",
+  successForeground: "oklch(1 0 0)",
+
+  warning: "oklch(0.667 0.162 58.3)",
+  warningForeground: "oklch(1 0 0)",
+
+  info: "oklch(0.546 0.215 262.881)",
+  infoForeground: "oklch(1 0 0)",
+
   border: "oklch(0.92 0.004 286.32)",
   input: "oklch(0.92 0.004 286.32)",
   ring: "oklch(0.546 0.215 262.881)",
@@ -53,6 +62,87 @@ export const colors = {
   chart3: "oklch(0.398 0.07 227.392)",
   chart4: "oklch(0.828 0.189 84.429)",
   chart5: "oklch(0.769 0.188 70.08)",
+} as const;
+
+/**
+ * RN-friendly color palette (plan §6.2), derived from the same OKLCH source as `colors`
+ * and `theme.css`. React Native / NativeWind does not handle `oklch()` reliably, so these
+ * are the equivalent sRGB hex (and rgba for translucent dark border/input) values.
+ *
+ * Single source of truth invariant: regenerate with `scripts` from the OKLCH values above;
+ * `colorsRgb.test.ts` snapshots these so a drift from `theme.css` is caught.
+ */
+export const colorsRgb = {
+  light: {
+    background: "#ffffff",
+    foreground: "#09090b",
+    card: "#ffffff",
+    cardForeground: "#09090b",
+    popover: "#ffffff",
+    popoverForeground: "#09090b",
+    primary: "#2563eb",
+    primaryForeground: "#eff6ff",
+    secondary: "#f4f4f5",
+    secondaryForeground: "#18181b",
+    muted: "#f4f4f5",
+    mutedForeground: "#71717b",
+    accent: "#f4f4f5",
+    accentForeground: "#18181b",
+    destructive: "#e7000b",
+    destructiveForeground: "#eff6ff",
+    success: "#16a34a",
+    successForeground: "#ffffff",
+    warning: "#d97706",
+    warningForeground: "#ffffff",
+    info: "#2563eb",
+    infoForeground: "#ffffff",
+    border: "#e4e4e7",
+    input: "#e4e4e7",
+    ring: "#2563eb",
+    sidebar: "#fafafa",
+    sidebarForeground: "#09090b",
+    sidebarPrimary: "#2563eb",
+    sidebarPrimaryForeground: "#eff6ff",
+    sidebarAccent: "#f4f4f5",
+    sidebarAccentForeground: "#18181b",
+    sidebarBorder: "#e4e4e7",
+    sidebarRing: "#2563eb",
+  },
+  dark: {
+    background: "#09090b",
+    foreground: "#fafafa",
+    card: "#18181b",
+    cardForeground: "#fafafa",
+    popover: "#18181b",
+    popoverForeground: "#fafafa",
+    primary: "#2b7fff",
+    primaryForeground: "#eff6ff",
+    secondary: "#27272a",
+    secondaryForeground: "#fafafa",
+    muted: "#27272a",
+    mutedForeground: "#9f9fa9",
+    accent: "#27272a",
+    accentForeground: "#fafafa",
+    destructive: "#ff6467",
+    destructiveForeground: "#fafafa",
+    success: "#22c55e",
+    successForeground: "#ffffff",
+    warning: "#f59e0b",
+    warningForeground: "#ffffff",
+    info: "#3b82f6",
+    infoForeground: "#ffffff",
+    border: "rgba(255, 255, 255, 0.1)",
+    input: "rgba(255, 255, 255, 0.15)",
+    ring: "#2b7fff",
+    sidebar: "#18181b",
+    sidebarForeground: "#fafafa",
+    sidebarPrimary: "#2b7fff",
+    sidebarPrimaryForeground: "#eff6ff",
+    sidebarAccent: "#27272a",
+    sidebarAccentForeground: "#fafafa",
+    sidebarBorder: "rgba(255, 255, 255, 0.1)",
+    sidebarRing: "#2b7fff",
+  },
 } as const;
 
 /** Spacing scale (rem). Matches Tailwind's default 4px step base. */
@@ -122,6 +212,9 @@ export const tokens = {
 
 export type Tokens = typeof tokens;
 export type Colors = typeof colors;
+export type ColorsRgb = typeof colorsRgb;
+/** A single theme's RN color set (light or dark). */
+export type RgbColorScheme = ColorsRgb["light"];
 export type Spacing = typeof spacing;
 export type Radius = typeof radius;
 export type Typography = typeof typography;
