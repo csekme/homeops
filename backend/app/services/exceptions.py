@@ -8,6 +8,37 @@ class AuthError(Exception):
     """Base for authentication/authorization failures."""
 
 
+class HouseholdNotFound(Exception):
+    """The requested household does not exist or the user has no membership in it (→ 404).
+
+    Generic on purpose: a non-member must not be able to distinguish "no such household"
+    from "exists but you're not in it" (plan §4.3 cross-tenant isolation)."""
+
+
+class MemberNotFound(Exception):
+    """The target membership does not exist in the acting household (→ 404)."""
+
+
+class AlreadyMember(Exception):
+    """The user already belongs to the household the invitation targets (→ 409)."""
+
+
+class InvalidInvitation(Exception):
+    """Invitation token unknown, expired or already used (→ 400)."""
+
+
+class LastOwnerProtected(Exception):
+    """Refused: would leave the household with no OWNER (→ 409, data-integrity guard)."""
+
+
+class ObligationNotFound(Exception):
+    """The requested obligation does not exist in the acting household (→ 404)."""
+
+
+class InvalidObligation(Exception):
+    """The obligation payload is invalid — e.g. an unparseable RRULE (→ 422)."""
+
+
 class PermissionDenied(Exception):
     """The current membership's role lacks the permission for this operation (→ 403).
 

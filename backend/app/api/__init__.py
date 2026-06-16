@@ -11,8 +11,12 @@ if TYPE_CHECKING:
 def register_blueprints(app: APIFlask) -> None:
     from app.api.auth import auth_bp
     from app.api.health import health_bp
+    from app.api.households import households_bp
+    from app.api.obligations import obligations_bp
     from app.api.totp import totp_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(totp_bp)
+    app.register_blueprint(households_bp)
+    app.register_blueprint(obligations_bp)

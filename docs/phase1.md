@@ -41,7 +41,7 @@ A Fázis 3 (`apps/mobile`, Expo/RN) **nem ír újra üzleti logikát**. Ezért a
 | **Adatelérés** | `packages/api-client` | közös | orval-generált TanStack Query hookok + mutator (web: cookie+bearer; **mobil: bearer secure-store-ból — a mutator-seam már kész**) |
 | **Fordítások** | `packages/i18n` | közös | HU/EN kulcsok + típusos `t` |
 | **Dizájn-token** | `packages/tokens` | közös forrás | web Tailwind + mobil NativeWind ugyanabból |
-| **Prezentáció** | `apps/web` (Fázis 1), `apps/mobile` (Fázis 3) | **platform-specifikus** | shadcn/Radix DOM-komponensek, oldalak, RHF-kötés |
+| **Prezentáció** | `apps/web` (§5.1) + `apps/mobile` (§5.2) | **platform-specifikus** | web: shadcn/Radix DOM; mobil: gluestack-ui v4 + NativeWind RN; oldalak, RHF-kötés |
 
 **Két szigorú szabály (ESLint `no-restricted-imports` tartatja be):**
 1. A `packages/*` **soha** nem importál DOM-ot, React Native-et, shadcn-t vagy `apps/*`-ot.
@@ -318,7 +318,11 @@ A Fázis 3 (`apps/mobile`, Expo/RN) **nem ír újra üzleti logikát**. Ezért a
 
 ---
 
-## 5. WEB (`apps/web`) — Fázis 1 képernyők
+## 5. PREZENTÁCIÓ — Fázis 1 képernyők
+
+> A prezentációs réteg **két platformra** szállít (web most, mobil párhuzamosan/Fázis 3), de **ugyanarra a közös magra** (`packages/{core,validation,api-client,i18n,tokens}`) épül. Egyik platform sem ír újra üzleti logikát: a `features/<terület>/use-*.ts` hookok csak *összekötik* a közös `api-client` hookot + `validation` sémát + `core` helpert a platform-specifikus UI-val. A különbség kizárólag a prezentáció: web = shadcn/Radix DOM, mobil = gluestack-ui v4 + NativeWind RN.
+
+### 5.1 WEB (`apps/web`) — Fázis 1 képernyők
 
 > Minden UI shadcn CLI-n át (`info` → `search`/`docs --base radix`/`view` → `add` → komponálás); szerver-állapot **kizárólag** a B4 generált hookjaiból; űrlapok RHF + `@homeops/validation`; szöveg `@homeops/i18n`; jogosultság-kapuzás `@homeops/core`. **A `src/components/ui/*` nincs kézzel szerkesztve.** Minden képernyő vékony `pages/*.tsx` + `features/<terület>/use-*.ts` hook + `mappers.ts` + `error-messages.ts` (a Fázis 0-ban rögzült minta).
 
@@ -356,7 +360,41 @@ A Fázis 3 (`apps/mobile`, Expo/RN) **nem ír újra üzleti logikát**. Ezért a
 - `features/notifications/use-notification-preferences.ts`; `pages/settings.tsx` bővítés (csatorna/típus + előzetes-ablak űrlap), „aktív riasztások" nézet (Web Push a Fázis 3+).
 - *Elfogadás:* preferenciák oda-vissza API-n; közelgő-esedékes e-mail a Mailpitben.
 
-**Web/mobil kapcsolat (mind a 4.9–4.13-ra):** a hook-ok csak *összekötik* a közös `api-client` + `validation` + `core` hármast a shadcn UI-val. A Fázis 3 mobil ugyanezt a hármast importálja, csak a prezentáció (RN/NativeWind) más. **Semmi üzleti döntés nem szivárog a web-prezentációba.**
+---
+
+## 5.2 MOBILE (`apps/mobile`) — Fázis 1 képernyők
+
+> **A mobil a webbel azonos `features/<terület>/use-*.ts` + `mappers.ts` réteget használja** — ezek a hookok platform-függetlenek (csak `@homeops/api-client` + `@homeops/validation` + `@homeops/core`), ezért **nem íródnak újra**: a közös csomagba (vagy egy platform-független `features/` rétegbe) kerülnek, és a web és a mobil egyaránt importálja. **Csak a prezentáció platform-specifikus.**
+>
+> **Mobil UI-konvenciók (a Fázis 0-ban rögzült házi kit, lásd a mobile design-system memóriát):** képernyők a `src/components/` house-style rétegből épülnek (`Screen`/`ScreenTitle`, `SectionCard`, `IconBadge`, `EmptyState`, `FormField`, `FormAlert`, `QuickAction`, `AppIcon`) a gluestack-ui v4 `ui/` primitívek fölött — **SOHA nyers `Card`/`VStack`-ből**. **Csak szemantikus tokenek** (`bg-background`/`bg-card`/`bg-muted`, `text-foreground`/`text-muted-foreground`, `bg-primary`+`-foreground`, `bg-destructive`, `bg-success`/`bg-warning`/`bg-info`) — a számozott gluestack-skála tiltott. Navigáció = **oldal-drawer** (`expo-router/drawer`, `AppDrawerContent`), nem bottom-tabs. Űrlapok: RHF + `@homeops/validation` (`zodResolver`, ugyanaz a séma mint a weben). Szöveg: `@homeops/i18n` (HU/EN paritás). Szerver-állapot: a **B4 generált TanStack Query hookjai** (`@homeops/api-client`), a bearer token a `token-store` secure-store seamjéből (a mutator már kész). Jogosultság-kapuzás: `can()`/`isFinancialVisible()` a `core`-ból.
+
+### M4.9 — Háztartás + tagság + RBAC (mobil)
+- Hookok: **a 4.9 `features/households/` réteg újrahasználva** (`use-create-household`, `use-household-switch`, `use-members`, `use-invite`, `use-member-role`, `mappers.ts`) — platform-független, megosztott.
+- Képernyők (`app/(app)/households/`): háztartás-lista `SectionCard` sorok + role-`IconBadge`; létrehozás/meghívás `Actionsheet` modalban (`FormField` e-mail + role-picker `Actionsheet`); tag-lista `SectionCard` sorok role-pillel; role-váltás `Actionsheet` OWNER/ADMIN-nak; üres állapot `EmptyState`.
+- **Háztartás-váltó az app-drawer household-lockup seamjébe** köt (Fázis 0 `AppDrawerContent`); a `switch` új access-tokent ad (a token-store-ba).
+- **Akció-kapuzás `can()`/`isFinancialVisible()`** (VIEWER read-only, gomb rejtve).
+- *Elfogadás:* OWNER meghív/kezel; VIEWER csak olvas; meghívó **deep-link** (`homeops://invite/<token>` / universal link) → accept; háztartás-váltás új tokennel.
+
+### M4.10 — Teendők (egyszeri + RRULE) (mobil)
+- Hookok: **a 4.10 `features/obligations/` réteg újrahasználva** (lista+szűrő, form, complete/skip akciók).
+- Képernyők: lista `SectionCard` + státusz-`IconBadge` (a `core/status.ts` derivált — ugyanaz mint a weben), szűrő `Actionsheet`; create/edit modal (cím, kategória, due date **natív date-picker**, felelős-picker, becsült `Money`, lead-time); **ismétlés-szerkesztő `core/recurrence.ts`-szel + következő-előfordulás-előnézet** (azonos számítás, RN render); complete/skip swipe- vagy gomb-akció.
+- *Elfogadás:* `FREQ=MONTHLY;BYMONTHDAY=15` helyes következő (előnézet); státusz-pill UPCOMING/DUE/OVERDUE; CHILD csak a sajátját látja (a szerver szűr).
+
+### M4.11 — Kiadások + havi áttekintő (mobil)
+- Hookok: **a 4.11 `features/expenses/` réteg újrahasználva** (lista, form, havi áttekintő).
+- Képernyők: rögzítés modal (`Money` egész minor + pénznem-picker + dátum + kategória + ismétlődő `Switch` + kapcsolt szolgáltatás); havi áttekintő `SectionCard` kártyák kategória-bontással + előző hó delta, **per-pénznem külön** (`core/money.ts`). Chart: RN-kompatibilis lib (pl. `victory-native`/`react-native-svg`), de a **chart-adat-derivált a `core`-ból** — csak a render más.
+- *Elfogadás:* összegek egész minorként a hálózaton; per-pénznem külön; nincs cross-currency összeg.
+
+### M4.12 — Dashboard (szerepkör-érzékeny) (mobil)
+- Hook: **a 4.12 `features/dashboard/use-dashboard.ts` újrahasználva.** A widget-térkép ugyanaz, `SectionCard`/`IconBadge`/`EmptyState` kompozícióval; a havi-kiadás és esedékes-befizetés widget **CHILD/VIEWER-nél rejtve** (`isFinancialVisible` a `core`-ból + a szerver sem küldi — kétréteg).
+- *Elfogadás:* MEMBER → minden widget; CHILD/VIEWER → pénzügyi widgetek hiányoznak (a szerver sem küldi).
+
+### M4.13 — Értesítés-preferenciák (mobil)
+- Hook: **a 4.13 `features/notifications/use-notification-preferences.ts` újrahasználva.** Settings-képernyő bővítés (csatorna/típus + előzetes-ablak `FormField`/`Switch`).
+- A **push (Expo Notifications) a Fázis 3** — itt csak az `EMAIL`-preferencia UI; a push-csatorna seam a meglévő outbox-`channel` enumra épül (4.7), a worker-interfész nem változik.
+- *Elfogadás:* preferenciák oda-vissza API-n.
+
+**Web/mobil kapcsolat (mind a 4.9–4.13 / M4.9–M4.13-ra):** a hook-ok csak *összekötik* a közös `api-client` + `validation` + `core` hármast a platform UI-jával. A web és a mobil **ugyanazt a hármast importálja**, csak a prezentáció (shadcn DOM vs. gluestack-ui/NativeWind RN) más. **Semmi üzleti döntés nem szivárog a prezentációba** — sem a webbe, sem a mobilba.
 
 ---
 

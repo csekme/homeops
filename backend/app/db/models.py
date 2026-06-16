@@ -9,25 +9,28 @@ content tables in Phase 1; the currency CHECK pattern is established here on hou
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     LargeBinary,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.db.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMixin
+from app.domain.enums import ObligationStatus, UserStatus
 from app.domain.enums import Role as RoleEnum
-from app.domain.enums import UserStatus
 
 CURRENCY_CHECK = "currency_iso4217"
 
@@ -117,6 +120,82 @@ class Membership(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     role: Mapped[Role] = relationship()
 
     __table_args__ = (UniqueConstraint("user_id", "household_id", name="user_household"),)
+
+
+class Invitation(UUIDPrimaryKeyMixin, TenantMixin, Base):
+    """Pending invitation to join a household with a chosen role (plan §4.3).
+
+    Tenant-scoped (``household_id`` via ``TenantMixin``) → RLS applies; listing/managing
+    invitations happens in the inviter's household context. **Acceptance**, however, runs
+    in no-tenant mode (the invitee isn't a member yet): the row is found by ``token_hash``,
+    exactly like activation tokens — hash-only storage, single-use, expiring.
+    """
+
+    __tablename__ = "invitations"
+
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("roles.id", ondelete="RESTRICT"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Who sent it. SET NULL on member removal so the invite (and later audit) survives.
+    created_by_membership_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("memberships.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    role: Mapped[Role] = relationship()
+
+
+class Obligation(UUIDPrimaryKeyMixin, TimestampMixin, TenantMixin, Base):
+    """A one-off or recurring (RRULE) household task with an optional assignee (plan §4.4).
+
+    Tenant-scoped (``household_id`` via ``TenantMixin``) → RLS applies. ``status`` is the
+    *stored* lifecycle (UPCOMING/DONE/SKIPPED); the derived DUE/OVERDUE display state is
+    computed at read time from ``due_date`` + ``lead_time_days`` (``derive_status``). For a
+    recurring obligation, completing/skipping spawns the next occurrence row (the service
+    owns that flow). Money follows the project rule: integer minor units + ISO-4217.
+    """
+
+    __tablename__ = "obligations"
+
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    due_date: Mapped[date] = mapped_column(Date, nullable=False)
+    rrule: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=ObligationStatus.UPCOMING.value
+    )
+    # The responsible member. SET NULL on member removal so the obligation survives.
+    assignee_membership_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("memberships.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    estimated_amount_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    actual_amount_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    lead_time_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    assignee: Mapped[Membership | None] = relationship()
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('UPCOMING','DUE','DONE','OVERDUE','SKIPPED')",
+            name="obligation_status_valid",
+        ),
+        CheckConstraint("currency ~ '^[A-Z]{3}$'", name=CURRENCY_CHECK),
+        # Dashboard upcoming-window + scheduler due-soon sweeps fan out on this composite.
+        Index("ix_obligations_household_due_status", "household_id", "due_date", "status"),
+    )
 
 
 class RefreshToken(UUIDPrimaryKeyMixin, Base):
@@ -231,7 +310,9 @@ class RecoveryCode(UUIDPrimaryKeyMixin, Base):
 __all__ = [
     "ActivationToken",
     "Household",
+    "Invitation",
     "Membership",
+    "Obligation",
     "RecoveryCode",
     "RefreshToken",
     "Role",

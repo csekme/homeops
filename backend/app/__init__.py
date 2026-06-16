@@ -51,6 +51,10 @@ def create_app(overrides: dict | None = None) -> APIFlask:
             "name": "Auth",
             "description": "Registration, activation, login and refresh-token lifecycle.",
         },
+        {
+            "name": "Households",
+            "description": "Households, memberships, role management and invitations.",
+        },
         {"name": "System", "description": "Health and readiness probes."},
     ]
     app.config.from_object(cfg)
