@@ -253,3 +253,26 @@ class MonthlyOverviewOut(Schema):
     year = Integer()
     month = Integer()
     currencies = List(Nested(CurrencyGroupOut))
+
+
+# ── Dashboard (plan §4.6) ────────────────────────────────────────────────────────────
+
+
+class AlertOut(Schema):
+    """Active-alert shape. A seam until the 4.7 outbox populates it (empty for now)."""
+
+    type = String()
+    severity = String()
+    message = String()
+
+
+class DashboardOut(Schema):
+    """Role-sensitive payload: the financial fields (``monthly_overview``,
+    ``due_payments``) are absent for roles without ``expense.read`` — server-side, not
+    just hidden in the UI (plan §4.6)."""
+
+    upcoming_obligations = List(Nested(ObligationOut))
+    overdue_obligations = List(Nested(ObligationOut))
+    alerts = List(Nested(AlertOut))
+    monthly_overview = Nested(MonthlyOverviewOut)
+    due_payments = List(Nested(ObligationOut))

@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 def register_blueprints(app: APIFlask) -> None:
     from app.api.auth import auth_bp
+    from app.api.dashboard import dashboard_bp
     from app.api.expenses import expenses_bp
     from app.api.health import health_bp
     from app.api.households import households_bp
@@ -22,3 +23,4 @@ def register_blueprints(app: APIFlask) -> None:
     app.register_blueprint(households_bp)
     app.register_blueprint(obligations_bp)
     app.register_blueprint(expenses_bp)
+    app.register_blueprint(dashboard_bp)
