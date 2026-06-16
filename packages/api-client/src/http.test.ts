@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { apiFetch, ApiRequestError, configureApiClient } from './http';
+import { apiFetch, ApiRequestError, configureApiClient, refreshAccessToken } from './http';
 import {
   clearAccessToken,
   getAccessToken,
   isAccessTokenExpiring,
+  loadRefreshToken,
   setAccessToken,
   setOnSessionExpired,
+  setSessionPersistence,
+  type SessionPersistence,
 } from './token-store';
 
 /* ---------------------------------------------------------------- helpers */
@@ -67,7 +70,15 @@ function installFetch(opts: {
 /* ------------------------------------------------------------------- setup */
 
 beforeEach(() => {
-  configureApiClient({ baseUrl: '/api' });
+  // Reset to the web defaults explicitly — config is module-sticky, so a body-strategy
+  // test must not leak its strategy into the cookie tests.
+  configureApiClient({
+    baseUrl: '/api',
+    credentials: 'include',
+    refreshStrategy: 'cookie',
+    extraHeaders: {},
+  });
+  setSessionPersistence(null);
   clearAccessToken();
   setOnSessionExpired(null);
   vi.stubGlobal('document', { cookie: 'csrf_token=csrf123' });
@@ -196,5 +207,74 @@ describe('apiFetch — failed refresh fires the session-expired handler', () => 
 
     await expect(apiFetch('/auth/me')).rejects.toBeInstanceOf(ApiRequestError);
     expect(onExpired).toHaveBeenCalledWith({ wasAuthenticated: false });
+  });
+});
+
+/* ----------------------------------------------- body (mobile) refresh strategy */
+
+/** An in-memory persistence adapter standing in for `expo-secure-store`. */
+function fakePersistence(initial: string | null): SessionPersistence & { current: string | null } {
+  const store = { current: initial } as SessionPersistence & { current: string | null };
+  store.loadRefreshToken = async () => store.current;
+  store.saveRefreshToken = async (token) => {
+    store.current = token;
+  };
+  return store;
+}
+
+describe('refreshAccessToken — body strategy (mobile)', () => {
+  beforeEach(() => {
+    configureApiClient({
+      baseUrl: '/api',
+      credentials: 'omit',
+      refreshStrategy: 'body',
+      extraHeaders: { 'X-Client-Type': 'mobile' },
+    });
+    // No `document` in RN — make sure the body path never touches cookies.
+    vi.unstubAllGlobals();
+  });
+
+  it('sends the persisted refresh token in the body and persists the rotated one', async () => {
+    const persistence = fakePersistence('refresh-old');
+    setSessionPersistence(persistence);
+    const fresh = makeJwt(900);
+
+    const fetchMock = vi.fn(async (_url: string, init?: { body?: string; headers?: Record<string, string> }) => {
+      const sent = JSON.parse(init?.body ?? '{}') as { refresh_token?: string };
+      expect(sent.refresh_token).toBe('refresh-old');
+      expect(init?.headers?.['X-Client-Type']).toBe('mobile');
+      return res(200, { access_token: fresh, token_type: 'Bearer', refresh_token: 'refresh-new' });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const token = await refreshAccessToken();
+
+    expect(token).toBe(fresh);
+    expect(getAccessToken()).toBe(fresh);
+    expect(await loadRefreshToken()).toBe('refresh-new'); // rotated + persisted
+  });
+
+  it('returns null without a network call when no refresh token is persisted', async () => {
+    setSessionPersistence(fakePersistence(null));
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const token = await refreshAccessToken();
+
+    expect(token).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('clears the access token and wipes the persisted refresh on a failed refresh', async () => {
+    const persistence = fakePersistence('refresh-old');
+    setSessionPersistence(persistence);
+    setAccessToken(makeJwt(900));
+    vi.stubGlobal('fetch', vi.fn(async () => res(401, { error: { message: 'no' } })));
+
+    const token = await refreshAccessToken();
+
+    expect(token).toBeNull();
+    expect(getAccessToken()).toBeNull();
+    expect(await loadRefreshToken()).toBeNull(); // family gone → local refresh wiped
   });
 });

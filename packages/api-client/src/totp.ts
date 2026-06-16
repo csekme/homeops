@@ -20,7 +20,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { meQueryKey } from './auth';
 import { apiFetch } from './http';
-import { setAccessToken } from './token-store';
+import { setSession } from './token-store';
 
 export function totpSetup(): Promise<TotpSetupResponse> {
   return apiFetch('/auth/totp/setup', { method: 'POST' });
@@ -51,7 +51,10 @@ export async function totpVerify(body: TotpVerifyRequest): Promise<LoginResponse
     body,
     skipAuthRetry: true,
   });
-  if (result.access_token) setAccessToken(result.access_token);
+  // Like login: `refresh_token` only arrives for mobile; web keeps refresh in the cookie.
+  if (result.access_token) {
+    setSession({ access: result.access_token, refresh: result.refresh_token ?? undefined });
+  }
   return result;
 }
 

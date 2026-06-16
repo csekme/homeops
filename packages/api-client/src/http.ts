@@ -13,14 +13,41 @@ import {
   clearAccessToken,
   getAccessToken,
   isAccessTokenExpiring,
+  loadRefreshToken,
   notifySessionExpired,
+  saveRefreshToken,
   setAccessToken,
+  setSession,
 } from './token-store';
 
-let apiBaseUrl = '/api';
+/**
+ * How the refresh round-trip carries its credential:
+ * - `cookie` (web default): the HttpOnly refresh cookie rides along with `credentials:
+ *   'include'`, plus the double-submit `X-CSRF-Token` header.
+ * - `body` (mobile): there is no cookie jar, so the persisted refresh token is sent in the
+ *   request body and a rotated one comes back in the response body. No CSRF (no ambient
+ *   cookie → no CSRF vector, plan §M.5).
+ */
+export type RefreshStrategy = 'cookie' | 'body';
 
-export function configureApiClient(options: { baseUrl?: string }): void {
+let apiBaseUrl = '/api';
+let apiCredentials: RequestCredentials = 'include';
+let refreshStrategy: RefreshStrategy = 'cookie';
+let extraHeaders: Record<string, string> = {};
+
+export function configureApiClient(options: {
+  baseUrl?: string;
+  /** web: `'include'` (default, carries cookies); mobile: `'omit'`. */
+  credentials?: RequestCredentials;
+  /** `'cookie'` (default) | `'body'`. */
+  refreshStrategy?: RefreshStrategy;
+  /** Extra headers on every request, e.g. mobile's `{ 'X-Client-Type': 'mobile' }`. */
+  extraHeaders?: Record<string, string>;
+}): void {
   if (options.baseUrl) apiBaseUrl = options.baseUrl;
+  if (options.credentials) apiCredentials = options.credentials;
+  if (options.refreshStrategy) refreshStrategy = options.refreshStrategy;
+  if (options.extraHeaders) extraHeaders = options.extraHeaders;
 }
 
 export class ApiRequestError extends Error {
@@ -61,24 +88,53 @@ async function parse<T>(response: Response): Promise<T> {
 
 let refreshInFlight: Promise<string | null> | null = null;
 
+/** Web/default path: HttpOnly refresh cookie + double-submit CSRF header. */
+async function refreshViaCookie(): Promise<string | null> {
+  const csrf = readCookie('csrf_token');
+  const response = await fetch(`${apiBaseUrl}/auth/refresh`, {
+    method: 'POST',
+    credentials: apiCredentials,
+    headers: { ...extraHeaders, ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+  });
+  if (!response.ok) {
+    clearAccessToken();
+    return null;
+  }
+  const data = (await response.json()) as RefreshResponse;
+  setAccessToken(data.access_token);
+  return data.access_token;
+}
+
+/** Mobile path: persisted refresh token in the body; rotated token comes back in the body. */
+async function refreshViaBody(): Promise<string | null> {
+  const refreshToken = await loadRefreshToken();
+  if (!refreshToken) {
+    clearAccessToken();
+    return null;
+  }
+  const response = await fetch(`${apiBaseUrl}/auth/refresh`, {
+    method: 'POST',
+    credentials: apiCredentials,
+    headers: { ...extraHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!response.ok) {
+    clearAccessToken();
+    await saveRefreshToken(null);
+    return null;
+  }
+  const data = (await response.json()) as RefreshResponse;
+  // Rotation: persist the new refresh token; if the server omitted it, keep the old one.
+  setSession({ access: data.access_token, refresh: data.refresh_token ?? undefined });
+  return data.access_token;
+}
+
 /** Single-flight: concurrent 401s share one refresh round-trip. */
 export function refreshAccessToken(): Promise<string | null> {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
     try {
-      const csrf = readCookie('csrf_token');
-      const response = await fetch(`${apiBaseUrl}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: csrf ? { 'X-CSRF-Token': csrf } : {},
-      });
-      if (!response.ok) {
-        clearAccessToken();
-        return null;
-      }
-      const data = (await response.json()) as RefreshResponse;
-      setAccessToken(data.access_token);
-      return data.access_token;
+      return refreshStrategy === 'body' ? await refreshViaBody() : await refreshViaCookie();
     } catch {
       clearAccessToken();
       return null;
@@ -98,13 +154,13 @@ interface RequestOptions {
 
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const send = async (): Promise<Response> => {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...extraHeaders };
     const token = getAccessToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
     if (options.body !== undefined) headers['Content-Type'] = 'application/json';
     return fetch(`${apiBaseUrl}${path}`, {
       method: options.method ?? 'GET',
-      credentials: 'include',
+      credentials: apiCredentials,
       headers,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     });

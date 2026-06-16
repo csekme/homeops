@@ -61,7 +61,7 @@ shell + a néhány alap widget kerete áll.
 | # | Kérdés | Döntés |
 |---|---|---|
 | M.1 | Keretrendszer | **Expo (managed) + Expo Router** (file-based routing), TypeScript strict. |
-| M.2 | Stílus | **NativeWind v4**, téma a `@homeops/tokens`-ből generálva. **Nincs shadcn** (DOM/Radix). Saját, vékony RN primitívek (`Button`, `Field`, `Card`, stb.) a tokensre építve. |
+| M.2 | UI / stílus | **gluestack-ui v3** (NativeWind v4 alapokon), CLI-vel vendor-olt komponensek a `src/components/ui/`-ben. **Nincs shadcn** (DOM/Radix). A brand-szín (`primary`) a `@homeops/tokens` kék skálájára (`#2563eb`) van állítva a provider `config.ts`-ében. Vékony adapterek csak ott, ahol kell: `FormField` (RHF↔`FormControl`+`Input`) és `CodeInput` (szegmentált TOTP-mező). *(Eredeti döntés: saját NativeWind primitívek — felülírva gluestack-ui v3-ra.)* |
 | M.3 | Access token | **Csak memóriában** (a meglévő `token-store` modul-scope holdere), `Authorization: Bearer`. Reload után silent refresh rehidratál. |
 | M.4 | Refresh token | **`expo-secure-store`** (iOS Keychain / Android Keystore). Cookie **nincs** mobilon → a backend a refresh tokent a **body-ban** adja vissza mobil kliensnek (lásd §4 backend-delta). |
 | M.5 | CSRF | A double-submit CSRF a **cookie-alapú** web-folyamat védelme. Bearer/body-alapú mobil-refresh **nem cookie-függő**, így nincs ambient-cookie CSRF-vektor → mobilon CSRF-header **nincs**. |
@@ -381,7 +381,7 @@ A web `pages/settings.tsx` + `features/security/*` RN-portja. A hookok
 | session-expired → redirect /login + toast | **azonos** seam (`setOnSessionExpired`) |
 | reuse-detekció → család visszavonva + 401 | **azonos** (backend változatlan logika) |
 | aktiváló/meghívó link (web URL) | deep link `homeops://` + dev kézi token (§8.5) |
-| shadcn UI | NativeWind UI a `@homeops/tokens`-ből |
+| shadcn UI | **gluestack-ui v3** (NativeWind), brand-szín a `@homeops/tokens`-ből |
 | i18n (localStorage nyelv) | i18n (AsyncStorage/secure-store nyelv) |
 | téma (`dark` class + localStorage) | téma (`useColorScheme` + perzisztált pref) |
 

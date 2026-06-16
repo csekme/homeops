@@ -17,7 +17,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiFetch } from './http';
-import { clearAccessToken, setAccessToken } from './token-store';
+import { clearAccessToken, loadRefreshToken, saveRefreshToken, setSession } from './token-store';
 
 export async function login(body: LoginRequest): Promise<LoginResponse> {
   const result = await apiFetch<LoginResponse>('/auth/login', {
@@ -27,7 +27,11 @@ export async function login(body: LoginRequest): Promise<LoginResponse> {
   });
   // 2FA case: no session yet — only a challenge token. The caller routes to the verify
   // step; the access token is set later by `useTotpVerify`.
-  if (result.access_token) setAccessToken(result.access_token);
+  // The `refresh_token` is only present for mobile clients; on web it is undefined and
+  // `setSession` collapses to setting just the in-memory access token (cookie holds refresh).
+  if (result.access_token) {
+    setSession({ access: result.access_token, refresh: result.refresh_token ?? undefined });
+  }
   return result;
 }
 
@@ -44,10 +48,18 @@ export function fetchMe(): Promise<User> {
 }
 
 export async function logout(): Promise<void> {
+  // Mobile revokes by the body refresh token (no cookie); on web `loadRefreshToken`
+  // returns null → no body, identical to the previous cookie-only request.
+  const refreshToken = await loadRefreshToken();
   try {
-    await apiFetch('/auth/logout', { method: 'POST', skipAuthRetry: true });
+    await apiFetch('/auth/logout', {
+      method: 'POST',
+      body: refreshToken ? { refresh_token: refreshToken } : undefined,
+      skipAuthRetry: true,
+    });
   } finally {
     clearAccessToken();
+    await saveRefreshToken(null);
   }
 }
 

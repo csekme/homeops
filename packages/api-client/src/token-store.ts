@@ -84,3 +84,44 @@ export function setOnSessionExpired(handler: SessionExpiredHandler | null): void
 export function notifySessionExpired(info: SessionExpiredInfo): void {
   sessionExpiredHandler?.(info);
 }
+
+/* ---------------------------------------------------------------------------------- */
+/* Refresh-token persistence seam (plan §5.1)                                          */
+/* Web stores the refresh token in an HttpOnly cookie → registers NO adapter (no-op).  */
+/* Mobile has no cookie jar → registers an `expo-secure-store` adapter so the refresh   */
+/* token survives a cold start and feeds the body-refresh strategy.                     */
+/* ---------------------------------------------------------------------------------- */
+
+/** Host-supplied persistence for the refresh token (mobile: Keychain/Keystore). */
+export interface SessionPersistence {
+  loadRefreshToken(): Promise<string | null>;
+  saveRefreshToken(token: string | null): Promise<void>;
+}
+
+let sessionPersistence: SessionPersistence | null = null;
+
+export function setSessionPersistence(persistence: SessionPersistence | null): void {
+  sessionPersistence = persistence;
+}
+
+/** Read the persisted refresh token, or null when no adapter is registered (web). */
+export function loadRefreshToken(): Promise<string | null> {
+  return sessionPersistence ? sessionPersistence.loadRefreshToken() : Promise.resolve(null);
+}
+
+/** Persist (or clear with `null`) the refresh token; no-op when no adapter (web). */
+export function saveRefreshToken(token: string | null): Promise<void> {
+  return sessionPersistence ? sessionPersistence.saveRefreshToken(token) : Promise.resolve();
+}
+
+/**
+ * Set the full session at once: the access token goes to memory; the refresh token (when
+ * present) goes to the persistence adapter. On web the backend never returns a body
+ * `refresh_token`, so `refresh` is undefined and this collapses to `setAccessToken`.
+ */
+export function setSession(session: { access: string | null; refresh?: string | null }): void {
+  setAccessToken(session.access);
+  if (session.refresh !== undefined) {
+    void saveRefreshToken(session.refresh);
+  }
+}

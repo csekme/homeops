@@ -47,6 +47,12 @@ export interface LoginResponse {
   mfa_required?: boolean;
   /** Short-lived token to echo back to `/auth/totp/verify` when `mfa_required`. */
   challenge_token?: string;
+  /**
+   * Mobile clients only (`X-Client-Type: mobile`): the refresh token in the body, since
+   * there is no cookie jar. Web clients receive it as an HttpOnly cookie and never see it
+   * here. Stored in `expo-secure-store` on device.
+   */
+  refresh_token?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -89,6 +95,8 @@ export interface RecoveryRegenerateRequest {
 export interface RefreshResponse {
   access_token: string;
   token_type: string;
+  /** Mobile only: the rotated refresh token (body-refresh strategy). Undefined on web. */
+  refresh_token?: string;
 }
 
 export interface MessageResponse {

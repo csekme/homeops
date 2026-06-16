@@ -39,6 +39,24 @@ auth_bp = APIBlueprint("auth", __name__, url_prefix="/api/auth")
 
 REFRESH_COOKIE = "refresh_token"
 CSRF_COOKIE = "csrf_token"
+CLIENT_TYPE_HEADER = "X-Client-Type"
+REFRESH_HEADER = "X-Refresh-Token"
+
+
+def _is_mobile() -> bool:
+    """Mobile clients self-identify so we hand the refresh token back in the body (no cookie
+    jar) and skip CSRF (no ambient cookie → no CSRF vector, plan §M.5)."""
+    return request.headers.get(CLIENT_TYPE_HEADER, "").lower() == "mobile"
+
+
+def _body_refresh_token() -> str | None:
+    """Read the refresh token a mobile client sends in the body or the X-Refresh-Token header."""
+    header = request.headers.get(REFRESH_HEADER)
+    if header:
+        return header
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("refresh_token") if isinstance(payload, dict) else None
+    return token if isinstance(token, str) and token else None
 
 
 def _attach_session_cookies(refresh_token: str, csrf_token: str) -> None:
@@ -77,12 +95,15 @@ def _attach_session_cookies(refresh_token: str, csrf_token: str) -> None:
 
 
 def issue_session_response(issued: auth_service.IssuedSession) -> dict[str, object]:
-    """Attach the refresh/CSRF cookies and build the access-token + user body.
+    """Build the access-token + user body and deliver the refresh token to the right place.
+
+    Web (default): HttpOnly refresh + CSRF cookies (XSS-exfiltration safe in the browser).
+    Mobile (``X-Client-Type: mobile``): the refresh token goes in the body instead — there
+    is no cookie jar — and no cookies/CSRF are emitted.
 
     Shared by ``/login`` and ``/totp/verify`` so both emit an identical session payload.
     """
-    _attach_session_cookies(issued.refresh_token, issued.csrf_token)
-    return {
+    body: dict[str, object] = {
         "access_token": issued.access_token,
         "token_type": "Bearer",  # nosec B105 — OAuth token type, not a secret
         "user": {
@@ -93,6 +114,11 @@ def issue_session_response(issued: auth_service.IssuedSession) -> dict[str, obje
             "memberships": [],
         },
     }
+    if _is_mobile():
+        body["refresh_token"] = issued.refresh_token
+    else:
+        _attach_session_cookies(issued.refresh_token, issued.csrf_token)
+    return body
 
 
 def _clear_session_cookies() -> None:
@@ -177,10 +203,19 @@ def login(json_data: dict) -> dict[str, object]:
 )
 @limiter.limit("60 per minute")
 def refresh() -> dict[str, str]:
-    if not verify_csrf(request.cookies.get(CSRF_COOKIE), request.headers.get(CSRF_HEADER)):
-        abort(403, "Missing or invalid CSRF token.")
+    cookie_refresh = request.cookies.get(REFRESH_COOKIE)
+    if cookie_refresh:
+        # Cookie-based (web): the ambient cookie is a CSRF vector → double-submit required.
+        if not verify_csrf(request.cookies.get(CSRF_COOKIE), request.headers.get(CSRF_HEADER)):
+            abort(403, "Missing or invalid CSRF token.")
+        raw_refresh: str | None = cookie_refresh
+        mobile = False
+    else:
+        # Cookie-less (mobile): the refresh token rides in the body/header. No ambient
+        # credential → no CSRF check (plan §M.5).
+        raw_refresh = _body_refresh_token()
+        mobile = True
 
-    raw_refresh = request.cookies.get(REFRESH_COOKIE)
     if not raw_refresh:
         abort(401, "Missing refresh token.")
 
@@ -191,11 +226,16 @@ def refresh() -> dict[str, str]:
             user_agent=request.headers.get("User-Agent"),
         )
     except InvalidRefreshSession:
-        _clear_session_cookies()
+        if not mobile:
+            _clear_session_cookies()
         abort(401, "Invalid refresh session.")
 
-    _attach_session_cookies(rotated.refresh_token, rotated.csrf_token)
-    return {"access_token": rotated.access_token, "token_type": "Bearer"}  # nosec B105
+    body: dict[str, str] = {"access_token": rotated.access_token, "token_type": "Bearer"}  # nosec B105
+    if mobile:
+        body["refresh_token"] = rotated.refresh_token
+    else:
+        _attach_session_cookies(rotated.refresh_token, rotated.csrf_token)
+    return body
 
 
 @auth_bp.post("/logout")
@@ -204,7 +244,9 @@ def refresh() -> dict[str, str]:
     summary="Revoke the refresh family and clear cookies.", operation_id="logout", tags=["Auth"]
 )
 def logout() -> tuple[str, int]:
-    auth_service.logout(raw_refresh=request.cookies.get(REFRESH_COOKIE))
+    # Web revokes by the cookie; mobile by the body/header refresh token (no cookie jar).
+    raw_refresh = request.cookies.get(REFRESH_COOKIE) or _body_refresh_token()
+    auth_service.logout(raw_refresh=raw_refresh)
     _clear_session_cookies()
     return "", 204
 

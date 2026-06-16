@@ -54,6 +54,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # turbo fans out across every workspace, so apps/mobile lint + typecheck run here too.
       - run: pnpm turbo run lint
       - run: pnpm lint:packages # ESLint over the shared leaf packages (purity + security)
       - run: pnpm turbo run typecheck
@@ -71,7 +72,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Frontend domain/validation/i18n units (incl. HU/EN key parity → i18n-check).
+      # Frontend domain/validation/i18n units + api-client (body-refresh) + the mobile RN
+      # component tests (jest-expo) — turbo runs `test` in every workspace, mobile included.
       - run: pnpm turbo run test
       # Backend unit tests (no DB).
       - working-directory: backend
@@ -188,3 +190,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: echo "E2E (Playwright over the compose stack) is wired in a later phase."
+
+  mobile-eas:
+    # Gated like e2e (plan §M-Q1): the native EAS build / Detox run is non-merge-blocking in
+    # Phase 0. Mobile typecheck + lint + RN unit are already enforced via turbo above.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "EAS build + Detox E2E for apps/mobile are gated; full run lands in a later phase."
