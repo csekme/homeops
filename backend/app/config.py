@@ -51,6 +51,9 @@ class Config:
         self.JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", _DEV_JWT_SECRET)
         self.ACCESS_TOKEN_TTL_MINUTES = _int("ACCESS_TOKEN_TTL_MINUTES", 15)
         self.REFRESH_TOKEN_TTL_DAYS = _int("REFRESH_TOKEN_TTL_DAYS", 30)
+        # 2FA login challenge token — short-lived bridge between the password check and the
+        # TOTP/backup-code step (feature plan §Backend.7).
+        self.MFA_CHALLENGE_TTL_MINUTES = _int("MFA_CHALLENGE_TTL_MINUTES", 5)
 
         # Argon2id (plan §3.5a) — memory cost in KiB; ≥ 65536 = 64 MiB.
         self.ARGON2_MEMORY_COST = _int("ARGON2_MEMORY_COST", 65536)

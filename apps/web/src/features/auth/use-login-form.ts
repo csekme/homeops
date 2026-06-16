@@ -27,7 +27,18 @@ export function useLoginForm(redirectTo = '/'): UseLoginForm {
 
   const onSubmit = form.handleSubmit((values) => {
     login.mutate(toLoginRequest(values), {
-      onSuccess: () => navigate(redirectTo, { replace: true }),
+      onSuccess: (data) => {
+        // 2FA enabled: no session yet — carry the challenge token (in-memory router
+        // state, never the URL) to the verify screen instead of entering the app.
+        if (data.mfa_required && data.challenge_token) {
+          navigate('/login/verify', {
+            replace: true,
+            state: { challengeToken: data.challenge_token, redirectTo },
+          });
+          return;
+        }
+        navigate(redirectTo, { replace: true });
+      },
     });
   });
 

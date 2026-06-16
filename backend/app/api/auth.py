@@ -32,6 +32,7 @@ from app.services.exceptions import (
     InvalidActivationToken,
     InvalidCredentials,
     InvalidRefreshSession,
+    MfaRequired,
 )
 
 auth_bp = APIBlueprint("auth", __name__, url_prefix="/api/auth")
@@ -73,6 +74,25 @@ def _attach_session_cookies(refresh_token: str, csrf_token: str) -> None:
             path=csrf_path,
         )
         return response
+
+
+def issue_session_response(issued: auth_service.IssuedSession) -> dict[str, object]:
+    """Attach the refresh/CSRF cookies and build the access-token + user body.
+
+    Shared by ``/login`` and ``/totp/verify`` so both emit an identical session payload.
+    """
+    _attach_session_cookies(issued.refresh_token, issued.csrf_token)
+    return {
+        "access_token": issued.access_token,
+        "token_type": "Bearer",  # nosec B105 — OAuth token type, not a secret
+        "user": {
+            "id": str(issued.user.id),
+            "email": issued.user.email,
+            "display_name": issued.user.display_name,
+            "status": issued.user.status,
+            "memberships": [],
+        },
+    }
 
 
 def _clear_session_cookies() -> None:
@@ -137,23 +157,15 @@ def login(json_data: dict) -> dict[str, object]:
             ip=request.remote_addr,
             user_agent=request.headers.get("User-Agent"),
         )
+    except MfaRequired as exc:
+        # Password OK but 2FA is on: hand back a challenge token (no session yet).
+        return {"mfa_required": True, "challenge_token": exc.challenge_token}
     except AccountNotActivated:
         abort(403, "Account is not activated.")
     except InvalidCredentials:
         abort(401, "Invalid email or password.")
 
-    _attach_session_cookies(issued.refresh_token, issued.csrf_token)
-    return {
-        "access_token": issued.access_token,
-        "token_type": "Bearer",  # nosec B105 — OAuth token type, not a secret
-        "user": {
-            "id": str(issued.user.id),
-            "email": issued.user.email,
-            "display_name": issued.user.display_name,
-            "status": issued.user.status,
-            "memberships": [],
-        },
-    }
+    return issue_session_response(issued)
 
 
 @auth_bp.post("/refresh")

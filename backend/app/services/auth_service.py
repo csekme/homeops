@@ -27,12 +27,14 @@ from app.notifications.email.messages import build_activation_email
 from app.repositories import users as user_repo
 from app.security import refresh_tokens
 from app.security.csrf import issue_csrf_token
-from app.security.jwt_tokens import encode_access_token
+from app.security.jwt_tokens import decode_mfa_challenge, encode_access_token, encode_mfa_challenge
+from app.services import totp_service
 from app.services.exceptions import (
     AccountNotActivated,
     InvalidActivationToken,
     InvalidCredentials,
     InvalidRefreshSession,
+    MfaRequired,
 )
 
 log = get_logger("homeops.auth")
@@ -131,8 +133,13 @@ def login(*, email: str, password: str, ip: str | None, user_agent: str | None) 
 
     Non-ACTIVE accounts are rejected (plan §3.5b → 403). Both the unknown-user and
     bad-password paths raise the same generic error (plan §3.5f).
+
+    When the account has 2FA enabled the password check is *not* enough: instead of a
+    session we raise ``MfaRequired`` carrying a short-lived challenge token; the client
+    completes login via ``complete_login`` (feature plan §Backend.7).
     """
     email = email.strip().lower()
+    cfg = current_app.config
     with session_scope(bypass_tenant=True) as session:
         user = user_repo.get_by_email(session, email)
         passwords = get_passwords()
@@ -151,6 +158,34 @@ def login(*, email: str, password: str, ip: str | None, user_agent: str | None) 
         if passwords.needs_rehash(user.password_hash):
             user.password_hash = passwords.hash(password)
 
+        if totp_service.is_enabled(session, user.id):
+            raise MfaRequired(
+                encode_mfa_challenge(
+                    user_id=user.id,
+                    secret=cfg["JWT_SECRET_KEY"],
+                    ttl_minutes=cfg["MFA_CHALLENGE_TTL_MINUTES"],
+                )
+            )
+
+        return _issue_session(session, user, ip=ip, user_agent=user_agent)
+
+
+def complete_login(
+    *, challenge_token: str, code: str, ip: str | None, user_agent: str | None
+) -> IssuedSession:
+    """Login step 2: validate the challenge token + TOTP/backup code, then issue a session.
+
+    May raise ``TokenError`` (bad/expired challenge), ``InvalidTotpCode``/``TotpReuse``
+    (bad code), or ``TotpNotConfigured``. Verification and session issuance share one
+    transaction so the consumed step / used backup code commit atomically with the session.
+    """
+    cfg = current_app.config
+    claims = decode_mfa_challenge(challenge_token, secret=cfg["JWT_SECRET_KEY"])
+    with session_scope(bypass_tenant=True) as session:
+        user = user_repo.get_by_id(session, claims.sub)
+        if user is None or user.status != UserStatus.ACTIVE.value:
+            raise InvalidCredentials("invalid credentials")
+        totp_service.verify_challenge(session, user_id=user.id, code=code)
         return _issue_session(session, user, ip=ip, user_agent=user_agent)
 
 
