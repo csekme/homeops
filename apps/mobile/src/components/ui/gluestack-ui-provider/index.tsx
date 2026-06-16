@@ -24,6 +24,7 @@ export function GluestackUIProvider({
 
   return (
     <View
+      className="bg-background"
       style={[
         config[colorScheme!],
         { flex: 1, height: '100%', width: '100%' },

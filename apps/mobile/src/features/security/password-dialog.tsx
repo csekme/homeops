@@ -48,7 +48,7 @@ function Shell({
         </ModalHeader>
         <ModalBody>
           <VStack space="md">
-            <Text className="text-typography-500">{description}</Text>
+            <Text className="text-muted-foreground">{description}</Text>
             {children}
           </VStack>
         </ModalBody>
@@ -74,7 +74,7 @@ function DisableDialog({ onClose }: { onClose: () => void }) {
         errorMessage={form.formState.errors.password?.message}
         type="password"
       />
-      {isError ? <Text className="text-error-600">{t(errorKey)}</Text> : null}
+      {isError ? <Text className="text-destructive">{t(errorKey)}</Text> : null}
       <Button action="negative" onPress={onSubmit} isDisabled={isPending}>
         {isPending ? <ButtonSpinner /> : <ButtonText>{t('twofactor.disable.submit')}</ButtonText>}
       </Button>
@@ -108,7 +108,7 @@ function RegenerateDialog({
         errorMessage={form.formState.errors.password?.message}
         type="password"
       />
-      {isError ? <Text className="text-error-600">{t(errorKey)}</Text> : null}
+      {isError ? <Text className="text-destructive">{t(errorKey)}</Text> : null}
       <Button onPress={onSubmit} isDisabled={isPending}>
         {isPending ? (
           <ButtonSpinner />

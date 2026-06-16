@@ -17,11 +17,11 @@ const badgeStyle = tva({
   base: 'flex-row items-center rounded-sm data-[disabled=true]:opacity-50 px-2 py-1',
   variants: {
     action: {
-      error: 'bg-background-error border-error-300',
-      warning: 'bg-background-warning border-warning-300',
-      success: 'bg-background-success border-success-300',
-      info: 'bg-background-info border-info-300',
-      muted: 'bg-background-muted border-background-300',
+      error: 'bg-destructive/10 border-destructive/30',
+      warning: 'bg-warning/10 border-warning/30',
+      success: 'bg-success/10 border-success/30',
+      info: 'bg-info/10 border-info/30',
+      muted: 'bg-muted border-border',
     },
     variant: {
       solid: '',
@@ -36,15 +36,15 @@ const badgeStyle = tva({
 });
 
 const badgeTextStyle = tva({
-  base: 'text-typography-700 font-body font-normal tracking-normal uppercase',
+  base: 'text-foreground font-body font-normal tracking-normal uppercase',
 
   parentVariants: {
     action: {
-      error: 'text-error-600',
-      warning: 'text-warning-600',
-      success: 'text-success-600',
-      info: 'text-info-600',
-      muted: 'text-background-800',
+      error: 'text-destructive',
+      warning: 'text-warning',
+      success: 'text-success',
+      info: 'text-info',
+      muted: 'text-muted-foreground',
     },
     size: {
       sm: 'text-2xs',
@@ -72,7 +72,7 @@ const badgeTextStyle = tva({
       true: 'italic',
     },
     highlight: {
-      true: 'bg-yellow-500',
+      true: 'bg-warning',
     },
   },
 });
@@ -81,11 +81,11 @@ const badgeIconStyle = tva({
   base: 'fill-none',
   parentVariants: {
     action: {
-      error: 'text-error-600',
-      warning: 'text-warning-600',
-      success: 'text-success-600',
-      info: 'text-info-600',
-      muted: 'text-background-800',
+      error: 'text-destructive',
+      warning: 'text-warning',
+      success: 'text-success',
+      info: 'text-info',
+      muted: 'text-muted-foreground',
     },
     size: {
       sm: 'h-3 w-3',

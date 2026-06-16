@@ -1,54 +1,28 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { Drawer } from 'expo-router/drawer';
 
+import { AppDrawerContent } from '@/components/app-drawer';
 import { AppHeader } from '@/components/app-header';
 import { RequireAuth } from '@/components/require-auth';
+import { useTheme } from '@/lib/theme';
 
-type IconName = keyof typeof Ionicons.glyphMap;
+// Drawer surface = the semantic `card` colour (hex — React Navigation needs raw color strings).
+const DRAWER_BG = { light: '#ffffff', dark: '#18181b' } as const;
 
-/** Authenticated app shell (plan §U2): RequireAuth + bottom tabs, mirroring the web routes. */
+/** Authenticated app shell (plan §U2): RequireAuth + a side drawer (replaces the bottom tabs). */
 export default function AppLayout() {
-  const { t } = useTranslation('common');
-
-  const icon =
-    (name: IconName) =>
-    ({ color, size }: { color: string; size: number }) =>
-      <Ionicons name={name} color={color} size={size} />;
+  const { resolvedTheme } = useTheme();
 
   return (
     <RequireAuth>
-      <Tabs
+      <Drawer
+        drawerContent={(props) => <AppDrawerContent {...props} />}
         screenOptions={{
           header: () => <AppHeader />,
-          tabBarActiveTintColor: '#2563eb',
+          drawerType: 'front',
+          swipeEdgeWidth: 80,
+          drawerStyle: { backgroundColor: DRAWER_BG[resolvedTheme], width: 300 },
         }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{ title: t('nav.dashboard'), tabBarIcon: icon('home-outline') }}
-        />
-        <Tabs.Screen
-          name="obligations"
-          options={{ title: t('nav.obligations'), tabBarIcon: icon('checkbox-outline') }}
-        />
-        <Tabs.Screen
-          name="expenses"
-          options={{ title: t('nav.expenses'), tabBarIcon: icon('cash-outline') }}
-        />
-        <Tabs.Screen
-          name="services"
-          options={{ title: t('nav.services'), tabBarIcon: icon('cube-outline') }}
-        />
-        <Tabs.Screen
-          name="documents"
-          options={{ title: t('nav.documents'), tabBarIcon: icon('document-outline') }}
-        />
-        <Tabs.Screen
-          name="settings"
-          options={{ title: t('nav.settings'), tabBarIcon: icon('settings-outline') }}
-        />
-      </Tabs>
+      />
     </RequireAuth>
   );
 }

@@ -106,15 +106,15 @@ cssInterop(PrimitiveIcon, {
 const actionsheetStyle = tva({ base: 'w-full h-full web:pointer-events-none' });
 
 const actionsheetContentStyle = tva({
-  base: 'items-center rounded-tl-3xl rounded-tr-3xl p-5 pt-2 bg-background-0 web:pointer-events-auto web:select-none shadow-hard-5 border border-b-0 border-outline-100 pb-safe',
+  base: 'items-center rounded-tl-3xl rounded-tr-3xl p-5 pt-2 bg-popover web:pointer-events-auto web:select-none shadow-hard-5 border border-b-0 border-border pb-safe',
 });
 
 const actionsheetItemStyle = tva({
-  base: 'w-full flex-row items-center p-3 rounded-sm data-[disabled=true]:opacity-40 data-[disabled=true]:web:pointer-events-auto data-[disabled=true]:web:cursor-not-allowed hover:bg-background-50 active:bg-background-100 data-[focus=true]:bg-background-100 web:data-[focus-visible=true]:bg-background-100 web:data-[focus-visible=true]:outline-indicator-primary gap-2',
+  base: 'w-full flex-row items-center p-3 rounded-sm data-[disabled=true]:opacity-40 data-[disabled=true]:web:pointer-events-auto data-[disabled=true]:web:cursor-not-allowed hover:bg-muted active:bg-muted data-[focus=true]:bg-muted web:data-[focus-visible=true]:bg-muted web:data-[focus-visible=true]:outline-ring gap-2',
 });
 
 const actionsheetItemTextStyle = tva({
-  base: 'text-typography-700 font-normal font-body',
+  base: 'text-foreground font-normal font-body',
   variants: {
     isTruncated: {
       true: '',
@@ -145,7 +145,7 @@ const actionsheetItemTextStyle = tva({
 });
 
 const actionsheetDragIndicatorStyle = tva({
-  base: 'w-16 h-1 bg-background-400 rounded-full',
+  base: 'w-16 h-1 bg-muted-foreground/40 rounded-full',
 });
 
 const actionsheetDragIndicatorWrapperStyle = tva({
@@ -153,7 +153,8 @@ const actionsheetDragIndicatorWrapperStyle = tva({
 });
 
 const actionsheetBackdropStyle = tva({
-  base: 'absolute left-0 top-0 right-0 bottom-0 bg-background-dark web:cursor-default web:pointer-events-auto',
+  // Fixed dark scrim — backdrops stay dark in both themes (the one place a literal black is correct).
+  base: 'absolute left-0 top-0 right-0 bottom-0 bg-black/50 web:cursor-default web:pointer-events-auto',
 });
 
 const actionsheetScrollViewStyle = tva({
@@ -173,7 +174,7 @@ const actionsheetSectionListStyle = tva({
 });
 
 const actionsheetSectionHeaderTextStyle = tva({
-  base: 'leading-5 font-bold font-heading my-0 text-typography-500 p-3 uppercase',
+  base: 'leading-5 font-bold font-heading my-0 text-muted-foreground p-3 uppercase',
   variants: {
     isTruncated: {
       true: '',
@@ -206,7 +207,7 @@ const actionsheetSectionHeaderTextStyle = tva({
       true: 'italic',
     },
     highlight: {
-      true: 'bg-yellow500',
+      true: 'bg-warning',
     },
   },
   defaultVariants: {
@@ -215,7 +216,7 @@ const actionsheetSectionHeaderTextStyle = tva({
 });
 
 const actionsheetIconStyle = tva({
-  base: 'text-background-500 fill-none',
+  base: 'text-muted-foreground fill-none',
   variants: {
     size: {
       '2xs': 'h-3 w-3',

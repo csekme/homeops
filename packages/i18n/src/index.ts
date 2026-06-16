@@ -14,6 +14,7 @@ import huDashboard from "./locales/hu/dashboard.json" with { type: "json" };
 import huObligations from "./locales/hu/obligations.json" with { type: "json" };
 import huExpenses from "./locales/hu/expenses.json" with { type: "json" };
 import huServices from "./locales/hu/services.json" with { type: "json" };
+import huDocuments from "./locales/hu/documents.json" with { type: "json" };
 import huValidation from "./locales/hu/validation.json" with { type: "json" };
 
 import enCommon from "./locales/en/common.json" with { type: "json" };
@@ -23,6 +24,7 @@ import enDashboard from "./locales/en/dashboard.json" with { type: "json" };
 import enObligations from "./locales/en/obligations.json" with { type: "json" };
 import enExpenses from "./locales/en/expenses.json" with { type: "json" };
 import enServices from "./locales/en/services.json" with { type: "json" };
+import enDocuments from "./locales/en/documents.json" with { type: "json" };
 import enValidation from "./locales/en/validation.json" with { type: "json" };
 
 export const supportedLngs = ["hu", "en"] as const;
@@ -38,6 +40,7 @@ export const ns = [
   "obligations",
   "expenses",
   "services",
+  "documents",
   "validation",
 ] as const;
 export type Namespace = (typeof ns)[number];
@@ -54,6 +57,7 @@ export const resources = {
     obligations: huObligations,
     expenses: huExpenses,
     services: huServices,
+    documents: huDocuments,
     validation: huValidation,
   },
   en: {
@@ -64,6 +68,7 @@ export const resources = {
     obligations: enObligations,
     expenses: enExpenses,
     services: enServices,
+    documents: enDocuments,
     validation: enValidation,
   },
 } as const;

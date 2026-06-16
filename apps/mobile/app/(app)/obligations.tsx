@@ -1,5 +1,5 @@
 import { Placeholder } from '@/components/placeholder';
 
 export default function ObligationsScreen() {
-  return <Placeholder titleKey="nav.obligations" />;
+  return <Placeholder ns="obligations" icon="checkbox-outline" />;
 }

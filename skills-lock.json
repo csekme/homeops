@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "gluestack-ui-v4": {
+      "source": "gluestack/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gluestack-ui-v4/SKILL.md",
+      "computedHash": "5f00d8934fef415e31bbae36b1cb8bfe59452eeff0e48dea27172d620a00c612"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",

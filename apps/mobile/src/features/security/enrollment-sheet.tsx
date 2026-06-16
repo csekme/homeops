@@ -79,7 +79,7 @@ function ScanStep({
   return (
     <VStack space="lg">
       <Heading size="lg">{t('twofactor.setup.title')}</Heading>
-      <Text className="text-typography-500">{t('twofactor.setup.instruction')}</Text>
+      <Text className="text-muted-foreground">{t('twofactor.setup.instruction')}</Text>
 
       {isStarting || !provisioningUri ? (
         <Spinner className="my-6" />
@@ -91,16 +91,16 @@ function ScanStep({
 
           {secret ? (
             <VStack space="xs">
-              <Text className="text-typography-500">{t('twofactor.setup.manualEntry')}</Text>
+              <Text className="text-muted-foreground">{t('twofactor.setup.manualEntry')}</Text>
               <Pressable
                 onPress={() => {
                   void Clipboard.setStringAsync(secret);
                   setCopied(true);
                 }}
               >
-                <Text className="text-center font-mono text-typography-900">{secret}</Text>
+                <Text className="text-center font-mono text-foreground">{secret}</Text>
               </Pressable>
-              <Text className="text-center text-xs text-typography-500">
+              <Text className="text-center text-xs text-muted-foreground">
                 {copied ? t('twofactor.recovery.copied') : t('twofactor.setup.copyKey')}
               </Text>
             </VStack>
@@ -115,7 +115,7 @@ function ScanStep({
             )}
           />
 
-          {isError ? <Text className="text-error-600">{t(errorKey)}</Text> : null}
+          {isError ? <Text className="text-destructive">{t(errorKey)}</Text> : null}
 
           <Button onPress={onConfirm} isDisabled={isConfirming}>
             {isConfirming ? (

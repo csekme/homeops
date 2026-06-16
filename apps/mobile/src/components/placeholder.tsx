@@ -1,16 +1,27 @@
 import { useTranslation } from 'react-i18next';
 
-import { Heading } from '@/components/ui/heading';
-import { Text } from '@/components/ui/text';
-import { VStack } from '@/components/ui/vstack';
+import { type AppIconName } from '@/components/app-icon';
+import { EmptyState } from '@/components/empty-state';
 
-/** Phase-0 placeholder screen body (mirrors the web placeholder). */
-export function Placeholder({ titleKey }: { titleKey: string }) {
-  const { t } = useTranslation('common');
+interface PlaceholderProps {
+  /** Feature i18n namespace holding `title` + `comingSoon`. */
+  ns: 'obligations' | 'expenses' | 'services' | 'documents';
+  icon: AppIconName;
+}
+
+/**
+ * Phase-0 placeholder tab body: a polished "coming soon" empty state built from the feature's
+ * own namespace (its `title` + forward-looking `comingSoon` copy), so each tab reads as
+ * intentional rather than unfinished. Business screens replace this in Phase 1.
+ */
+export function Placeholder({ ns, icon }: PlaceholderProps) {
+  const { t } = useTranslation([ns, 'common']);
   return (
-    <VStack space="xs" className="flex-1 items-center justify-center bg-background-0 px-6">
-      <Heading size="xl">{t(titleKey)}</Heading>
-      <Text className="text-typography-500">{t('loading')}</Text>
-    </VStack>
+    <EmptyState
+      icon={icon}
+      badge={t('comingSoon', { ns: 'common' })}
+      title={t('title', { ns })}
+      description={t('comingSoon', { ns })}
+    />
   );
 }

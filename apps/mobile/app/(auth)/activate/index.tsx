@@ -34,14 +34,15 @@ export default function ActivateManualScreen() {
           name="token"
           label={t('activate.title')}
           errorMessage={form.formState.errors.token?.message}
+          icon="key-outline"
           autoCapitalize="none"
           autoCorrect={false}
         />
-        <Button onPress={onSubmit}>
+        <Button size="lg" className="rounded-xl" onPress={onSubmit}>
           <ButtonText>{t('login.submit')}</ButtonText>
         </Button>
         <Link href="/login" className="items-center">
-          <Text className="font-semibold text-primary-600">{t('login.title')}</Text>
+          <Text className="font-semibold text-primary">{t('login.title')}</Text>
         </Link>
       </VStack>
     </AuthShell>

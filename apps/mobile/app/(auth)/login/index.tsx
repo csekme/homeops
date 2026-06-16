@@ -2,6 +2,7 @@ import { Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { AuthShell } from '@/components/auth-shell';
+import { FormAlert } from '@/components/form-alert';
 import { FormField } from '@/components/form-field';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { HStack } from '@/components/ui/hstack';
@@ -22,6 +23,7 @@ export default function LoginScreen() {
           name="email"
           label={t('login.email')}
           errorMessage={errors.email?.message}
+          icon="mail-outline"
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
@@ -33,20 +35,21 @@ export default function LoginScreen() {
           label={t('login.password')}
           errorMessage={errors.password?.message}
           type="password"
+          icon="lock-closed-outline"
           autoComplete="password"
           textContentType="password"
         />
 
-        {isError ? <Text className="text-error-600">{t(errorKey)}</Text> : null}
+        {isError ? <FormAlert message={t(errorKey)} /> : null}
 
-        <Button onPress={onSubmit} isDisabled={isPending}>
+        <Button size="lg" className="rounded-xl" onPress={onSubmit} isDisabled={isPending}>
           {isPending ? <ButtonSpinner /> : <ButtonText>{t('login.submit')}</ButtonText>}
         </Button>
 
         <HStack space="xs" className="justify-center">
-          <Text className="text-typography-500">{t('login.noAccount')}</Text>
+          <Text className="text-muted-foreground">{t('login.noAccount')}</Text>
           <Link href="/register">
-            <Text className="font-semibold text-primary-600">{t('login.registerLink')}</Text>
+            <Text className="font-semibold text-primary">{t('login.registerLink')}</Text>
           </Link>
         </HStack>
       </VStack>

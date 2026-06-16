@@ -37,11 +37,11 @@ export function CodeInput({ value, onChange, length = 6, onComplete }: CodeInput
           return (
             <Box
               key={i}
-              className={`h-12 flex-1 items-center justify-center rounded-md border bg-background-0 ${
-                active ? 'border-primary-500' : 'border-outline-300'
+              className={`h-12 flex-1 items-center justify-center rounded-md border bg-card ${
+                active ? 'border-ring' : 'border-input'
               }`}
             >
-              <Text className="text-xl font-semibold text-typography-900">{value[i] ?? ''}</Text>
+              <Text className="text-xl font-semibold text-foreground">{value[i] ?? ''}</Text>
             </Box>
           );
         })}

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "gluestack-ui-v4": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "9c2f421cd490aea1f43e048ed3c9debee843038dde0c43f08a62c4c4987952a6"
+    }
+  }
+}

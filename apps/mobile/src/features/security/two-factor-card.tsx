@@ -9,10 +9,9 @@ import {
   ActionsheetDragIndicator,
   ActionsheetDragIndicatorWrapper,
 } from '@/components/ui/actionsheet';
+import { SectionCard } from '@/components/section-card';
 import { Badge, BadgeText } from '@/components/ui/badge';
 import { Button, ButtonText } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
@@ -33,25 +32,24 @@ export function TwoFactorCard() {
   const enabled = status?.enabled ?? false;
 
   return (
-    <Card>
+    <SectionCard
+      icon="shield-checkmark-outline"
+      title={t('security.title')}
+      subtitle={t('security.description')}
+    >
       <VStack space="lg">
-        <VStack space="xs">
-          <Heading size="lg">{t('security.title')}</Heading>
-          <Text className="text-typography-500">{t('security.description')}</Text>
-        </VStack>
-
         {isLoading ? (
           <Spinner />
         ) : (
           <>
             <HStack space="md" className="items-center">
-              <Badge action={enabled ? 'success' : 'muted'} variant="solid">
+              <Badge action={enabled ? 'success' : 'muted'} variant="solid" className="rounded-full">
                 <BadgeText>
                   {enabled ? t('security.statusEnabled') : t('security.statusDisabled')}
                 </BadgeText>
               </Badge>
               {enabled ? (
-                <Text className="text-typography-500">
+                <Text className="text-muted-foreground">
                   {t('security.recoveryRemaining', {
                     count: status?.recovery_codes_remaining ?? 0,
                   })}
@@ -61,15 +59,20 @@ export function TwoFactorCard() {
 
             {enabled ? (
               <VStack space="sm">
-                <Button variant="outline" action="secondary" onPress={() => setDialog('regenerate')}>
+                <Button
+                  variant="outline"
+                  action="secondary"
+                  className="rounded-xl"
+                  onPress={() => setDialog('regenerate')}
+                >
                   <ButtonText>{t('security.regenerateButton')}</ButtonText>
                 </Button>
-                <Button action="negative" onPress={() => setDialog('disable')}>
+                <Button action="negative" className="rounded-xl" onPress={() => setDialog('disable')}>
                   <ButtonText>{t('security.disableButton')}</ButtonText>
                 </Button>
               </VStack>
             ) : (
-              <Button onPress={() => setDialog('enroll')}>
+              <Button className="rounded-xl" onPress={() => setDialog('enroll')}>
                 <ButtonText>{t('security.enableButton')}</ButtonText>
               </Button>
             )}
@@ -98,6 +101,6 @@ export function TwoFactorCard() {
           </VStack>
         </ActionsheetContent>
       </Actionsheet>
-    </Card>
+    </SectionCard>
   );
 }

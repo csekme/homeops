@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-import { Button, ButtonText } from '@/components/ui/button';
+import { AppIcon } from '@/components/app-icon';
+import { Button } from '@/components/ui/button';
 import { useTheme } from '@/lib/theme';
 
 /** Light ⇄ dark toggle (mirrors web). */
@@ -16,7 +17,11 @@ export function ThemeToggle() {
       accessibilityLabel={t('themeToggle')}
       onPress={toggleTheme}
     >
-      <ButtonText>{resolvedTheme === 'dark' ? '☀️' : '🌙'}</ButtonText>
+      <AppIcon
+        name={resolvedTheme === 'dark' ? 'sunny-outline' : 'moon-outline'}
+        size={18}
+        className="text-muted-foreground"
+      />
     </Button>
   );
 }

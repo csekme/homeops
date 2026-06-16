@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AuthShell } from '@/components/auth-shell';
 import { CodeInput } from '@/components/code-input';
+import { FormAlert } from '@/components/form-alert';
 import { FormField } from '@/components/form-field';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { Pressable } from '@/components/ui/pressable';
@@ -29,12 +30,11 @@ function VerifyForm({ challengeToken, onBack }: { challengeToken: string; onBack
   const { form, onSubmit, isPending, isError, errorKey } = useTotpChallenge(challengeToken);
 
   return (
-    <AuthShell title={t('twofactor.challenge.title')}>
+    <AuthShell
+      title={t('twofactor.challenge.title')}
+      subtitle={t('twofactor.challenge.instruction')}
+    >
       <VStack space="lg">
-        <Text className="text-center text-typography-500">
-          {t('twofactor.challenge.instruction')}
-        </Text>
-
         {recoveryMode ? (
           <FormField
             control={form.control}
@@ -54,9 +54,9 @@ function VerifyForm({ challengeToken, onBack }: { challengeToken: string; onBack
           />
         )}
 
-        {isError ? <Text className="text-center text-error-600">{t(errorKey)}</Text> : null}
+        {isError ? <FormAlert message={t(errorKey)} /> : null}
 
-        <Button onPress={onSubmit} isDisabled={isPending}>
+        <Button size="lg" className="rounded-xl" onPress={onSubmit} isDisabled={isPending}>
           {isPending ? (
             <ButtonSpinner />
           ) : (
@@ -71,13 +71,13 @@ function VerifyForm({ challengeToken, onBack }: { challengeToken: string; onBack
           }}
           className="items-center py-1"
         >
-          <Text className="font-semibold text-primary-600">
+          <Text className="font-semibold text-primary">
             {recoveryMode ? t('twofactor.challenge.title') : t('twofactor.recovery.title')}
           </Text>
         </Pressable>
 
         <Pressable onPress={onBack} className="items-center py-1">
-          <Text className="font-semibold text-primary-600">{t('twofactor.challenge.back')}</Text>
+          <Text className="font-semibold text-primary">{t('twofactor.challenge.back')}</Text>
         </Pressable>
       </VStack>
     </AuthShell>

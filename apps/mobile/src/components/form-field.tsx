@@ -1,6 +1,7 @@
 import { Controller, type Control, type FieldPath, type FieldValues } from 'react-hook-form';
 import type { TextInputProps } from 'react-native';
 
+import { AppIcon, type AppIconName } from '@/components/app-icon';
 import {
   FormControl,
   FormControlError,
@@ -8,7 +9,7 @@ import {
   FormControlLabel,
   FormControlLabelText,
 } from '@/components/ui/form-control';
-import { Input, InputField } from '@/components/ui/input';
+import { Input, InputField, InputSlot } from '@/components/ui/input';
 
 interface FormFieldProps<TValues extends FieldValues>
   extends Pick<
@@ -20,11 +21,15 @@ interface FormFieldProps<TValues extends FieldValues>
   label: string;
   errorMessage?: string;
   type?: 'text' | 'password';
+  placeholder?: string;
+  /** Optional leading icon rendered inside the input (Ionicons name). */
+  icon?: AppIconName;
 }
 
 /**
- * RHF-bound labelled field over gluestack-ui v3 `FormControl` + `Input` (plan §M.2). Keeps
- * pages declarative: label + input + error wired through a `Controller`.
+ * RHF-bound labelled field over gluestack-ui v3 `FormControl` + `Input` (plan §M.2). Keeps pages
+ * declarative: label + input + error wired through a `Controller`. Uses the large, rounded input
+ * variant with an optional leading icon for the HomeOps look.
  */
 export function FormField<TValues extends FieldValues>({
   control,
@@ -32,6 +37,8 @@ export function FormField<TValues extends FieldValues>({
   label,
   errorMessage,
   type = 'text',
+  placeholder,
+  icon,
   ...inputProps
 }: FormFieldProps<TValues>) {
   return (
@@ -43,12 +50,18 @@ export function FormField<TValues extends FieldValues>({
         control={control}
         name={name}
         render={({ field }) => (
-          <Input variant="outline" size="md">
+          <Input variant="outline" size="lg" className="rounded-xl">
+            {icon ? (
+              <InputSlot className="pl-3">
+                <AppIcon name={icon} size={18} className="text-muted-foreground" />
+              </InputSlot>
+            ) : null}
             <InputField
               type={type}
               value={field.value as string}
               onChangeText={field.onChange}
               onBlur={field.onBlur}
+              placeholder={placeholder}
               {...inputProps}
             />
           </Input>

@@ -45,10 +45,10 @@ export function NavUser() {
       <Pressable
         accessibilityRole="button"
         onPress={() => setOpen(true)}
-        className="h-9 w-9 items-center justify-center rounded-full bg-primary-600"
+        className="h-9 w-9 items-center justify-center rounded-full bg-primary"
       >
         <Center>
-          <Text className="font-semibold text-typography-0">{initial}</Text>
+          <Text className="font-semibold text-primary-foreground">{initial}</Text>
         </Center>
       </Pressable>
 

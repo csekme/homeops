@@ -21,5 +21,6 @@
     "complete": "Kész",
     "skip": "Kihagyás"
   },
-  "empty": "Még nincs egyetlen teendő sem."
+  "empty": "Még nincs egyetlen teendő sem.",
+  "comingSoon": "Ismétlődő teendők, számlák és megújítások követése okos emlékeztetőkkel. Hamarosan elérhető."
 }

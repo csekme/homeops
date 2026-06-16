@@ -27,12 +27,12 @@ export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () =
   return (
     <VStack space="lg">
       <Heading size="lg">{t('twofactor.recovery.title')}</Heading>
-      <Text className="text-typography-500">{t('twofactor.recovery.warning')}</Text>
+      <Text className="text-muted-foreground">{t('twofactor.recovery.warning')}</Text>
 
-      <Box className="rounded-md border border-outline-200 bg-background-50 p-3">
+      <Box className="rounded-md border border-border bg-muted p-3">
         <VStack space="xs">
           {codes.map((code) => (
-            <Text key={code} className="text-center font-mono text-typography-900">
+            <Text key={code} className="text-center font-mono text-foreground">
               {code}
             </Text>
           ))}

@@ -7,6 +7,8 @@
   "sessionExpired": "Your session has expired. Please sign in again.",
   "languageToggle": "Toggle language",
   "themeToggle": "Toggle theme",
+  "menu": "Open menu",
+  "comingSoon": "Coming soon",
   "households": "Households",
   "nav": {
     "dashboard": "Dashboard",

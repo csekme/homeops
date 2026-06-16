@@ -1,6 +1,10 @@
 {
   "title": "Dashboard",
   "greeting": "Welcome back, {{name}}!",
+  "subtitle": "Here's an overview of your household.",
+  "quickActions": "Quick actions",
+  "widgetsTitle": "Your home at a glance",
+  "widgetsBody": "Upcoming obligations, monthly spend and reminders will appear here soon.",
   "upcoming": "Upcoming obligations",
   "overdue": "Overdue obligations",
   "monthlySpend": "Monthly spend",
