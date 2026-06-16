@@ -1,0 +1,43 @@
+{
+  "_comment": "Shared RBAC catalogue (HomeOps plan §4.2/B2). Single source of truth for the role→permission map. The backend pins app.domain.enums.ROLE_PERMISSIONS to this (test_rbac.py) and the @homeops/core PERMISSIONS const is pinned to this permission universe (permissions.test.ts). A change here must pass on both sides — keeps web/mobile UI gating and the backend gate in lockstep.",
+  "roles": {
+    "OWNER": [
+      "expense.read",
+      "expense.write",
+      "obligation.read",
+      "obligation.write",
+      "document.read",
+      "document.delete",
+      "connector.manage",
+      "member.invite",
+      "member.manage",
+      "household.delete",
+      "billing.manage"
+    ],
+    "ADMIN": [
+      "expense.read",
+      "expense.write",
+      "obligation.read",
+      "obligation.write",
+      "document.read",
+      "document.delete",
+      "connector.manage",
+      "member.invite",
+      "member.manage"
+    ],
+    "MEMBER": [
+      "expense.read",
+      "expense.write",
+      "obligation.read",
+      "obligation.write",
+      "document.read"
+    ],
+    "VIEWER": [
+      "obligation.read",
+      "document.read"
+    ],
+    "CHILD": [
+      "obligation.read"
+    ]
+  }
+}

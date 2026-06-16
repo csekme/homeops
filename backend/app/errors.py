@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from app.services.exceptions import PermissionDenied
+
 if TYPE_CHECKING:
     from apiflask import APIFlask
 
@@ -27,3 +29,9 @@ def register_error_handlers(app: APIFlask) -> None:
         if error.detail:
             body["error"]["detail"] = error.detail
         return body, error.status_code, error.headers or {}
+
+    @app.errorhandler(PermissionDenied)
+    def _permission_denied(_error: PermissionDenied) -> tuple[dict[str, Any], int]:
+        # Raised from the RBAC gate in the service layer; surface as a generic 403 so
+        # every tenant operation gets consistent authorization handling (plan §4.2).
+        return {"error": {"code": 403, "message": "You do not have permission to do that."}}, 403

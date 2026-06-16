@@ -16,9 +16,11 @@ export const PERMISSIONS = {
   EXPENSE_WRITE: "expense.write",
   OBLIGATION_READ: "obligation.read",
   OBLIGATION_WRITE: "obligation.write",
+  DOCUMENT_READ: "document.read",
   DOCUMENT_DELETE: "document.delete",
   CONNECTOR_MANAGE: "connector.manage",
   MEMBER_INVITE: "member.invite",
+  MEMBER_MANAGE: "member.manage",
   HOUSEHOLD_DELETE: "household.delete",
   BILLING_MANAGE: "billing.manage",
 } as const;

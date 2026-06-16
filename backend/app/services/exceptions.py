@@ -8,6 +8,19 @@ class AuthError(Exception):
     """Base for authentication/authorization failures."""
 
 
+class PermissionDenied(Exception):
+    """The current membership's role lacks the permission for this operation (→ 403).
+
+    Standalone (not under ``AuthError``) so it maps to 403 — *authenticated but not
+    authorized* — and is never accidentally caught alongside the 401 auth flows.
+    Carries the offending ``permission`` for logging/diagnostics; the HTTP message
+    stays generic (plan §4.2)."""
+
+    def __init__(self, permission: str) -> None:
+        super().__init__(f"permission denied: {permission}")
+        self.permission = permission
+
+
 class InvalidCredentials(AuthError):
     """Email/password did not match (generic message — no enumeration)."""
 

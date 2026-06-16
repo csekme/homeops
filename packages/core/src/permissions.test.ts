@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 import { can, isFinancialVisible, PERMISSIONS, ROLES } from "./permissions.js";
 import type { Role } from "./permissions.js";
@@ -35,18 +38,16 @@ describe("isFinancialVisible", () => {
   }
 });
 
-describe("PERMISSIONS constants", () => {
-  it("exposes the expected fine-grained strings", () => {
-    expect(Object.values(PERMISSIONS)).toEqual([
-      "expense.read",
-      "expense.write",
-      "obligation.read",
-      "obligation.write",
-      "document.delete",
-      "connector.manage",
-      "member.invite",
-      "household.delete",
-      "billing.manage",
-    ]);
+describe("PERMISSIONS catalogue parity (with backend ROLE_PERMISSIONS)", () => {
+  // Shared catalogue, also consumed by the backend pytest suite
+  // (test_rbac.py). Keeps the client-side UI gating in lockstep with the
+  // backend authorization gate — see HomeOps plan §4.2/B2.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const fixturePath = resolve(here, "../../../tests/fixtures/role_permissions.json");
+  const roles: Record<string, string[]> = JSON.parse(readFileSync(fixturePath, "utf-8")).roles;
+  const universe = new Set(Object.values(roles).flat());
+
+  it("exposes exactly the permission strings used across all roles", () => {
+    expect(new Set(Object.values(PERMISSIONS))).toEqual(universe);
   });
 });

@@ -10,7 +10,7 @@ implementations together (plan §4.1).
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from dateutil.rrule import rrulestr
 
@@ -50,7 +50,7 @@ def next_occurrence(rrule: str, after: date) -> date | None:
     try:
         nxt = rule.after(anchor, inc=False)
     except TypeError:
-        nxt = rule.after(anchor.replace(tzinfo=timezone.utc), inc=False)
+        nxt = rule.after(anchor.replace(tzinfo=UTC), inc=False)
     return nxt.date() if nxt is not None else None
 
 
