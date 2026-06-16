@@ -13,6 +13,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -198,6 +199,35 @@ class Obligation(UUIDPrimaryKeyMixin, TimestampMixin, TenantMixin, Base):
     )
 
 
+class Expense(UUIDPrimaryKeyMixin, TimestampMixin, TenantMixin, Base):
+    """A single household money entry (plan §4.5).
+
+    Tenant-scoped (``household_id`` via ``TenantMixin``) → RLS applies. Money follows the
+    project rule: ``amount_minor`` integer minor units + a per-line ISO-4217 ``currency``
+    — the monthly overview aggregates per (currency, category) and never adds across
+    currencies (no FX, decision §10.1). ``service_id`` is a Phase-2 seam (nullable UUID,
+    no FK yet). ``is_recurring`` splits the overview into fixed vs variable spend.
+    """
+
+    __tablename__ = "expenses"
+
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    occurred_on: Mapped[date] = mapped_column(Date, nullable=False)
+    category: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    # Phase-2 services FK seam — plain nullable UUID, no constraint until the table exists.
+    service_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_recurring: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("currency ~ '^[A-Z]{3}$'", name=CURRENCY_CHECK),
+        # Overview + dashboard month-window scans fan out on this composite.
+        Index("ix_expenses_household_occurred", "household_id", "occurred_on"),
+    )
+
+
 class RefreshToken(UUIDPrimaryKeyMixin, Base):
     """Server-side refresh token record (plan §3.5c/§3.5d).
 
@@ -309,6 +339,7 @@ class RecoveryCode(UUIDPrimaryKeyMixin, Base):
 
 __all__ = [
     "ActivationToken",
+    "Expense",
     "Household",
     "Invitation",
     "Membership",

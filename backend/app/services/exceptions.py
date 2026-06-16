@@ -39,6 +39,14 @@ class InvalidObligation(Exception):
     """The obligation payload is invalid — e.g. an unparseable RRULE (→ 422)."""
 
 
+class ExpenseNotFound(Exception):
+    """The requested expense does not exist in the acting household (→ 404)."""
+
+
+class InvalidExpense(Exception):
+    """The expense payload is invalid — e.g. a malformed money amount (→ 422)."""
+
+
 class PermissionDenied(Exception):
     """The current membership's role lacks the permission for this operation (→ 403).
 

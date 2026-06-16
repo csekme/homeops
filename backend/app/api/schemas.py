@@ -193,3 +193,63 @@ class ObligationListQuery(Schema):
     assignee = String()
     due_from = Date()
     due_to = Date()
+
+
+# ── Expenses + monthly overview (plan §4.5) ──────────────────────────────────────────
+
+
+class ExpenseIn(Schema):
+    """Create/update body. Money is integer minor units + ISO-4217 currency (never float).
+    Used with ``partial=True`` for PATCH."""
+
+    amount_minor = Integer(required=True)
+    currency = String(required=True, validate=Regexp(_CURRENCY_REGEX))
+    occurred_on = Date(required=True)
+    category = String(allow_none=True, validate=Length(max=80))
+    service_id = String(allow_none=True)
+    note = String(allow_none=True)
+    is_recurring = Boolean(load_default=False)
+
+
+class ExpenseOut(Schema):
+    id = String()
+    amount_minor = Integer()
+    currency = String()
+    occurred_on = Date()
+    category = String()
+    service_id = String()
+    note = String()
+    is_recurring = Boolean()
+
+
+class ExpenseListQuery(Schema):
+    year = Integer()
+    month = Integer(validate=Range(min=1, max=12))
+    category = String()
+
+
+class MonthlyOverviewQuery(Schema):
+    year = Integer(required=True)
+    month = Integer(required=True, validate=Range(min=1, max=12))
+
+
+class CategoryLineOut(Schema):
+    category = String()
+    amount_minor = Integer()
+    count = Integer()
+    delta_minor = Integer()
+
+
+class CurrencyGroupOut(Schema):
+    currency = String()
+    categories = List(Nested(CategoryLineOut))
+    fixed_total_minor = Integer()
+    variable_total_minor = Integer()
+    total_minor = Integer()
+    delta_minor = Integer()
+
+
+class MonthlyOverviewOut(Schema):
+    year = Integer()
+    month = Integer()
+    currencies = List(Nested(CurrencyGroupOut))
