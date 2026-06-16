@@ -25,7 +25,9 @@ export async function login(body: LoginRequest): Promise<LoginResponse> {
     body,
     skipAuthRetry: true,
   });
-  setAccessToken(result.access_token);
+  // 2FA case: no session yet — only a challenge token. The caller routes to the verify
+  // step; the access token is set later by `useTotpVerify`.
+  if (result.access_token) setAccessToken(result.access_token);
   return result;
 }
 
@@ -59,7 +61,10 @@ export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: login,
-    onSuccess: (data) => queryClient.setQueryData(meQueryKey, data.user),
+    // Only seed the cache on a full login; the mfa-required response carries no user.
+    onSuccess: (data) => {
+      if (data.user) queryClient.setQueryData(meQueryKey, data.user);
+    },
   });
 }
 

@@ -12,10 +12,12 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
+    LargeBinary,
     String,
     UniqueConstraint,
     func,
@@ -54,6 +56,11 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     memberships: Mapped[list[Membership]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+    # 1:1 TOTP enrolment (NULL until the user enables 2FA). Convenience accessor —
+    # the service still owns all the business logic (mirrors the `memberships` pattern).
+    totp: Mapped[UserTotp | None] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
 
     __table_args__ = (
@@ -164,12 +171,71 @@ class ActivationToken(UUIDPrimaryKeyMixin, Base):
     __table_args__ = (Index("ix_activation_tokens_user_id", "user_id"),)
 
 
+class UserTotp(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Per-user TOTP enrolment (2FA, feature plan §Backend.2).
+
+    User-scoped (no ``household_id``) → not subject to RLS, like ``users``/``refresh_tokens``;
+    accessed only in no-tenant mode. The base32 TOTP secret is **envelope-encrypted** with
+    the shared ``SecretCipher`` and stored as the three ``SealedSecret`` columns — the
+    plaintext secret never lands in the DB. The row exists from the moment setup starts;
+    ``confirmed_at`` flips it to *enabled* only after the user proves a valid code.
+    """
+
+    __tablename__ = "user_totp"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    # Envelope-encrypted base32 secret — maps 1:1 to SealedSecret(ciphertext, wrapped_dek, kek_id).
+    secret_ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    secret_wrapped_dek: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    secret_kek_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    # NULL until the enrolment is confirmed with a valid code → drives `enabled`.
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Replay protection: the last accepted TOTP time-step. A code for a step <= this is rejected.
+    last_used_step: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    user: Mapped[User] = relationship(back_populates="totp")
+
+    @property
+    def enabled(self) -> bool:
+        return self.confirmed_at is not None
+
+
+class RecoveryCode(UUIDPrimaryKeyMixin, Base):
+    """Single-use 2FA backup code (feature plan §Backend.2). Hash-only storage.
+
+    High-entropy codes (mirrors the refresh-token model), so SHA-256 — not a password
+    hash — is sufficient. ``used_at`` makes each code one-shot.
+    """
+
+    __tablename__ = "recovery_codes"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (Index("ix_recovery_codes_user_id", "user_id"),)
+
+
 __all__ = [
     "ActivationToken",
     "Household",
     "Membership",
+    "RecoveryCode",
     "RefreshToken",
     "Role",
     "RoleEnum",
     "User",
+    "UserTotp",
 ]

@@ -1,0 +1,59 @@
+{
+  "title": "Beállítások",
+  "security": {
+    "tabLabel": "Biztonság",
+    "title": "Kétlépcsős hitelesítés (2FA)",
+    "description": "Erősítsd meg a fiókodat egy hitelesítő alkalmazás (Google vagy Microsoft Authenticator) egyszer használatos kódjaival.",
+    "statusEnabled": "Bekapcsolva",
+    "statusDisabled": "Kikapcsolva",
+    "recoveryRemaining": "{{count}} tartalék kód maradt",
+    "enableButton": "Bekapcsolás",
+    "disableButton": "Kikapcsolás",
+    "regenerateButton": "Tartalék kódok újragenerálása"
+  },
+  "twofactor": {
+    "setup": {
+      "title": "Hitelesítő alkalmazás beállítása",
+      "instruction": "Olvasd be a QR-kódot a Google vagy Microsoft Authenticator alkalmazással.",
+      "manualEntry": "Vagy írd be kézzel ezt a kulcsot:",
+      "codeLabel": "6 jegyű kód",
+      "confirmButton": "Megerősítés"
+    },
+    "recovery": {
+      "title": "Tartalék kódok",
+      "warning": "Ezek a kódok csak most jelennek meg. Mentsd el őket biztonságos helyre — segítenek belépni, ha elveszted a hitelesítő alkalmazást.",
+      "copy": "Másolás",
+      "copied": "Kimásolva",
+      "download": "Letöltés",
+      "confirmSaved": "Elmentettem a kódokat",
+      "done": "Kész"
+    },
+    "challenge": {
+      "title": "Kétlépcsős hitelesítés",
+      "instruction": "Írd be a hitelesítő alkalmazás 6 jegyű kódját, vagy egy tartalék kódot.",
+      "codeLabel": "Kód",
+      "submit": "Belépés",
+      "back": "Vissza a bejelentkezéshez"
+    },
+    "disable": {
+      "title": "Kétlépcsős hitelesítés kikapcsolása",
+      "description": "A megerősítéshez add meg a jelszavadat. Ezzel törlöd a 2FA-t és a tartalék kódokat.",
+      "passwordLabel": "Jelszó",
+      "submit": "Kikapcsolás"
+    },
+    "regenerate": {
+      "title": "Tartalék kódok újragenerálása",
+      "description": "A korábbi tartalék kódok érvénytelenné válnak. A megerősítéshez add meg a jelszavadat.",
+      "passwordLabel": "Jelszó",
+      "submit": "Újragenerálás"
+    }
+  },
+  "errors": {
+    "totpInvalid": "Érvénytelen vagy lejárt kód. Próbáld újra.",
+    "totpReuse": "Ezt a kódot már felhasználtad. Várj az új kódra.",
+    "recoveryInvalid": "Érvénytelen tartalék kód.",
+    "totpAlreadyEnabled": "A kétlépcsős hitelesítés már be van kapcsolva.",
+    "invalidPassword": "Hibás jelszó.",
+    "generic": "Hiba történt. Próbáld újra."
+  }
+}

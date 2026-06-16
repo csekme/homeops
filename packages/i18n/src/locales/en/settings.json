@@ -1,0 +1,59 @@
+{
+  "title": "Settings",
+  "security": {
+    "tabLabel": "Security",
+    "title": "Two-factor authentication (2FA)",
+    "description": "Protect your account with one-time codes from an authenticator app (Google or Microsoft Authenticator).",
+    "statusEnabled": "Enabled",
+    "statusDisabled": "Disabled",
+    "recoveryRemaining": "{{count}} recovery codes left",
+    "enableButton": "Enable",
+    "disableButton": "Disable",
+    "regenerateButton": "Regenerate recovery codes"
+  },
+  "twofactor": {
+    "setup": {
+      "title": "Set up your authenticator app",
+      "instruction": "Scan the QR code with Google or Microsoft Authenticator.",
+      "manualEntry": "Or enter this key manually:",
+      "codeLabel": "6-digit code",
+      "confirmButton": "Confirm"
+    },
+    "recovery": {
+      "title": "Recovery codes",
+      "warning": "These codes are shown only once. Store them somewhere safe — they let you sign in if you lose your authenticator app.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "download": "Download",
+      "confirmSaved": "I've saved my codes",
+      "done": "Done"
+    },
+    "challenge": {
+      "title": "Two-factor authentication",
+      "instruction": "Enter the 6-digit code from your authenticator app, or a recovery code.",
+      "codeLabel": "Code",
+      "submit": "Sign in",
+      "back": "Back to sign in"
+    },
+    "disable": {
+      "title": "Disable two-factor authentication",
+      "description": "Enter your password to confirm. This removes 2FA and your recovery codes.",
+      "passwordLabel": "Password",
+      "submit": "Disable"
+    },
+    "regenerate": {
+      "title": "Regenerate recovery codes",
+      "description": "Your previous recovery codes will stop working. Enter your password to confirm.",
+      "passwordLabel": "Password",
+      "submit": "Regenerate"
+    }
+  },
+  "errors": {
+    "totpInvalid": "Invalid or expired code. Please try again.",
+    "totpReuse": "This code was already used. Wait for the next one.",
+    "recoveryInvalid": "Invalid recovery code.",
+    "totpAlreadyEnabled": "Two-factor authentication is already enabled.",
+    "invalidPassword": "Incorrect password.",
+    "generic": "Something went wrong. Please try again."
+  }
+}

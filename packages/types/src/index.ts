@@ -43,6 +43,47 @@ export interface LoginResponse {
   access_token: string;
   token_type: string;
   user: User;
+  /** Present (and true) when the account has 2FA enabled and step 2 is required. */
+  mfa_required?: boolean;
+  /** Short-lived token to echo back to `/auth/totp/verify` when `mfa_required`. */
+  challenge_token?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Two-factor authentication (TOTP)                                    */
+/* ------------------------------------------------------------------ */
+
+export interface TotpSetupResponse {
+  /** `otpauth://` URI the client renders as a QR code. */
+  provisioning_uri: string;
+  /** Base32 secret, for manual entry into an authenticator app. */
+  secret: string;
+}
+
+export interface TotpStatusResponse {
+  enabled: boolean;
+  recovery_codes_remaining: number;
+}
+
+export interface RecoveryCodesResponse {
+  codes: string[];
+}
+
+export interface TotpConfirmRequest {
+  code: string;
+}
+
+export interface TotpVerifyRequest {
+  challenge_token: string;
+  code: string;
+}
+
+export interface TotpDisableRequest {
+  password: string;
+}
+
+export interface RecoveryRegenerateRequest {
+  password: string;
 }
 
 export interface RefreshResponse {

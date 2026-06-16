@@ -6,14 +6,17 @@ import ActivatePage from '@/pages/activate';
 import DashboardPage from '@/pages/dashboard';
 import InvitePage from '@/pages/invite';
 import LoginPage from '@/pages/login';
+import LoginVerifyPage from '@/pages/login-verify';
 import { PlaceholderPage } from '@/pages/placeholder';
 import RegisterPage from '@/pages/register';
+import SettingsPage from '@/pages/settings';
 
 export default function App() {
   return (
     <Routes>
       {/* Public */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/login/verify" element={<LoginVerifyPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/activate/:token" element={<ActivatePage />} />
       <Route path="/invite/:token" element={<InvitePage />} />
@@ -26,7 +29,7 @@ export default function App() {
           <Route path="/expenses" element={<PlaceholderPage titleKey="nav.expenses" />} />
           <Route path="/services" element={<PlaceholderPage titleKey="nav.services" />} />
           <Route path="/documents" element={<PlaceholderPage titleKey="nav.documents" />} />
-          <Route path="/settings" element={<PlaceholderPage titleKey="nav.settings" />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>
 

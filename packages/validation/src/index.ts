@@ -66,6 +66,35 @@ export const activateSchema = z.object({
 });
 
 /* ------------------------------------------------------------------ */
+/* Two-factor authentication (TOTP)                                    */
+/* ------------------------------------------------------------------ */
+
+/** A 6-digit TOTP code. */
+export const totpCodeSchema = z.string().trim().regex(/^\d{6}$/);
+
+/** A formatted backup code, e.g. "a3kf-9p2m-7xqd" (dashes optional). */
+export const recoveryCodeSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9]{4}-?[a-z0-9]{4}-?[a-z0-9]{4}$/);
+
+/** Login step 2: either a 6-digit TOTP code or a backup code. */
+export const totpChallengeSchema = z.object({
+  code: z.union([totpCodeSchema, recoveryCodeSchema]),
+});
+
+/** Enrollment confirmation accepts only a 6-digit code. */
+export const totpConfirmSchema = z.object({
+  code: totpCodeSchema,
+});
+
+/** Password step-up for disable / recovery-code regeneration. */
+export const totpDisableSchema = z.object({
+  password: z.string().min(1),
+});
+
+/* ------------------------------------------------------------------ */
 /* Household & membership                                              */
 /* ------------------------------------------------------------------ */
 
@@ -126,6 +155,9 @@ export const serviceSchema = z.object({
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ActivateInput = z.infer<typeof activateSchema>;
+export type TotpChallengeInput = z.infer<typeof totpChallengeSchema>;
+export type TotpConfirmInput = z.infer<typeof totpConfirmSchema>;
+export type TotpDisableInput = z.infer<typeof totpDisableSchema>;
 export type HouseholdInput = z.infer<typeof householdSchema>;
 export type InviteInput = z.infer<typeof inviteSchema>;
 export type ObligationInput = z.infer<typeof obligationSchema>;

@@ -7,7 +7,7 @@ response serialization, and the OpenAPI source of truth.
 from __future__ import annotations
 
 from apiflask import Schema
-from apiflask.fields import Email, List, Nested, String
+from apiflask.fields import Boolean, Email, Integer, List, Nested, String
 from apiflask.validators import Length
 
 
@@ -46,11 +46,50 @@ class UserOut(Schema):
 
 
 class LoginOut(Schema):
+    # When 2FA is required only `mfa_required` + `challenge_token` are returned (HTTP 200);
+    # otherwise the full session payload. The controller emits one shape or the other.
     access_token = String()
     token_type = String()
     user = Nested(UserOut)
+    mfa_required = Boolean()
+    challenge_token = String()
 
 
 class RefreshOut(Schema):
     access_token = String()
     token_type = String()
+
+
+# ── Two-factor authentication (TOTP) ────────────────────────────────────────────────
+
+
+class TotpSetupOut(Schema):
+    provisioning_uri = String()
+    secret = String()
+
+
+class TotpConfirmIn(Schema):
+    code = String(required=True, validate=Length(min=6, max=12))
+
+
+class TotpVerifyIn(Schema):
+    challenge_token = String(required=True, validate=Length(min=1))
+    # TOTP (6 digits) or a formatted backup code (e.g. "a3kf-9p2m-7xqd").
+    code = String(required=True, validate=Length(min=6, max=32))
+
+
+class TotpDisableIn(Schema):
+    password = String(required=True, validate=Length(min=1, max=128))
+
+
+class RecoveryRegenerateIn(Schema):
+    password = String(required=True, validate=Length(min=1, max=128))
+
+
+class TotpStatusOut(Schema):
+    enabled = Boolean()
+    recovery_codes_remaining = Integer()
+
+
+class RecoveryCodesOut(Schema):
+    codes = List(String())
