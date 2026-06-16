@@ -1,0 +1,35 @@
+{
+  "_comment": "Shared drift fixture (HomeOps plan §4.1). Read by both the backend pytest suite (app.domain.recurrence) and the @homeops/core Vitest suite (recurrence.ts). All dates are UTC calendar dates; rules carry no DTSTART, so `after` is the anchor. Keep the two implementations in lockstep: a change here must pass on both sides.",
+  "next_occurrence": [
+    {
+      "name": "yearly anchored at after",
+      "rrule": "FREQ=YEARLY",
+      "after": "2024-06-01",
+      "expected": "2025-06-01"
+    },
+    {
+      "name": "monthly BYMONTHDAY=15 rolls to next month",
+      "rrule": "FREQ=MONTHLY;BYMONTHDAY=15",
+      "after": "2024-03-16",
+      "expected": "2024-04-15"
+    },
+    {
+      "name": "monthly BYMONTHDAY=15 is strictly after the anchor",
+      "rrule": "FREQ=MONTHLY;BYMONTHDAY=15",
+      "after": "2024-03-15",
+      "expected": "2024-04-15"
+    },
+    {
+      "name": "monthly BYMONTHDAY=31 skips months without a 31st (iCal semantics)",
+      "rrule": "FREQ=MONTHLY;BYMONTHDAY=31",
+      "after": "2024-01-31",
+      "expected": "2024-03-31"
+    },
+    {
+      "name": "weekly steps seven days",
+      "rrule": "FREQ=WEEKLY",
+      "after": "2024-03-01",
+      "expected": "2024-03-08"
+    }
+  ]
+}

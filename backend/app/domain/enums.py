@@ -27,6 +27,59 @@ class UserStatus(StrEnum):
     DISABLED = "DISABLED"
 
 
+class ObligationStatus(StrEnum):
+    """Derived display status of an obligation (spec §3.4, mirrors core/status.ts).
+
+    UPCOMING/DUE/OVERDUE are *derived* from ``due_date`` + today; DONE/SKIPPED
+    are terminal stored states. See :func:`app.domain.recurrence.derive_status`.
+    """
+
+    UPCOMING = "UPCOMING"
+    DUE = "DUE"
+    DONE = "DONE"
+    OVERDUE = "OVERDUE"
+    SKIPPED = "SKIPPED"
+
+
+class BillingCycle(StrEnum):
+    """Recurring service billing cadence (spec §3.5; consumed from Phase 1.x on)."""
+
+    MONTHLY = "MONTHLY"
+    QUARTERLY = "QUARTERLY"
+    YEARLY = "YEARLY"
+
+
+class NotificationType(StrEnum):
+    """Outbox notification kinds (spec §3.6 / plan §4.7)."""
+
+    OBLIGATION_DUE = "OBLIGATION_DUE"
+    PAYMENT_DUE = "PAYMENT_DUE"
+    OVERDUE = "OVERDUE"
+    INVITATION = "INVITATION"
+    WEEKLY_DIGEST = "WEEKLY_DIGEST"
+
+
+class NotificationChannel(StrEnum):
+    """Delivery channel. PUSH is additive in Phase 3 (plan §4.7)."""
+
+    EMAIL = "EMAIL"
+
+
+class NotificationStatus(StrEnum):
+    """Outbox row lifecycle (plan §4.7). DEAD = retries exhausted."""
+
+    PENDING = "PENDING"
+    SENT = "SENT"
+    FAILED = "FAILED"
+    DEAD = "DEAD"
+
+
+class ConnectorProvider(StrEnum):
+    """External connector providers. Phase 2 extends this; the enum exists now."""
+
+    GDRIVE = "GDRIVE"
+
+
 # Default permission catalogue per role. The fine-grained enforcement (require_permission
 # in the service layer) is Phase 1 (plan §4.2); seeded here so the role catalogue exists.
 ROLE_PERMISSIONS: dict[Role, list[str]] = {

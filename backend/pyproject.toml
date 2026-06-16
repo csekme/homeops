@@ -16,6 +16,7 @@ dependencies = [
     "cryptography>=43.0",
     "python-dotenv>=1.0",
     "apscheduler>=3.10",
+    "python-dateutil>=2.9",
 ]
 
 [dependency-groups]
