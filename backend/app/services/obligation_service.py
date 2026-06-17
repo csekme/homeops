@@ -30,6 +30,7 @@ from app.logging_config import get_logger
 from app.repositories import memberships as membership_repo
 from app.repositories import obligations as obligation_repo
 from app.security.rbac import MembershipContext, require_permission
+from app.services import audit_service
 from app.services.exceptions import InvalidObligation, ObligationNotFound
 
 log = get_logger("homeops.obligations")
@@ -199,6 +200,9 @@ def delete(membership: MembershipContext, obligation_id: str) -> None:
         if obligation is None:
             raise ObligationNotFound()
         obligation_repo.soft_delete(session, obligation)
+        audit_service.audit(
+            session, membership, "obligation.deleted", "obligation", target_id=obligation_id
+        )
         log.info(
             "obligation.deleted",
             household_id=membership.household_id,

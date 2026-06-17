@@ -228,6 +228,30 @@ class Expense(UUIDPrimaryKeyMixin, TimestampMixin, TenantMixin, Base):
     )
 
 
+class AuditLog(UUIDPrimaryKeyMixin, TenantMixin, Base):
+    """Append-only audit trail for sensitive operations (plan §4.8).
+
+    Tenant-scoped (``household_id`` via ``TenantMixin``) → RLS applies. There is **no**
+    ``TimestampMixin``: an audit row has only a ``created_at``, never an ``updated_at`` —
+    the row is immutable (enforced in the DB by a REVOKE + a block trigger). The Python
+    attribute is ``event_metadata`` because ``metadata`` is reserved on the declarative
+    base; it maps to the ``metadata`` JSONB column.
+    """
+
+    __tablename__ = "audit_log"
+
+    actor_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    action: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    event_metadata: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    ua: Mapped[str | None] = mapped_column(String(400), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class RefreshToken(UUIDPrimaryKeyMixin, Base):
     """Server-side refresh token record (plan §3.5c/§3.5d).
 
@@ -339,6 +363,7 @@ class RecoveryCode(UUIDPrimaryKeyMixin, Base):
 
 __all__ = [
     "ActivationToken",
+    "AuditLog",
     "Expense",
     "Household",
     "Invitation",

@@ -33,6 +33,7 @@ from app.repositories import memberships as membership_repo
 from app.repositories import roles as role_repo
 from app.security.jwt_tokens import encode_access_token
 from app.security.rbac import MembershipContext, require_permission
+from app.services import audit_service
 from app.services.exceptions import (
     AlreadyMember,
     HouseholdNotFound,
@@ -185,6 +186,15 @@ def accept_invitation(*, user_id: str, raw_token: str) -> AcceptResult:
         )
         invitation_repo.mark_accepted(session, invitation, when=datetime.now(UTC))
         role = invitation.role.name
+        audit_service.record(
+            session,
+            household_id=str(invitation.household_id),
+            actor_user_id=user_id,
+            action="invitation.accepted",
+            target_type="invitation",
+            target_id=invitation.id,
+            metadata={"role": role},
+        )
         log.info(
             "invitation.accepted", household_id=str(invitation.household_id), user_id=user_id
         )
@@ -212,7 +222,7 @@ def invite(*, membership: MembershipContext, email: str, role: RoleEnum) -> None
             raise HouseholdNotFound()
 
         raw_token = secrets.token_urlsafe(32)
-        invitation_repo.create(
+        invitation = invitation_repo.create(
             session,
             household_id=membership.household_id,
             email=email,
@@ -221,6 +231,14 @@ def invite(*, membership: MembershipContext, email: str, role: RoleEnum) -> None
             expires_at=datetime.now(UTC)
             + timedelta(hours=cfg["INVITATION_TOKEN_TTL_HOURS"]),
             created_by_membership_id=actor.id if actor else None,
+        )
+        audit_service.audit(
+            session,
+            membership,
+            "invitation.created",
+            "invitation",
+            target_id=invitation.id,
+            metadata={"email": email, "role": role.value},
         )
 
         invite_url = f"{cfg['PUBLIC_BASE_URL']}/invite/{raw_token}"
@@ -273,6 +291,14 @@ def update_member_role(
 
         membership_repo.update_role(session, target, role_id=new_role.id)
         session.flush()
+        audit_service.audit(
+            session,
+            membership,
+            "membership.role_updated",
+            "membership",
+            target_id=target.id,
+            metadata={"role": role.value},
+        )
         log.info(
             "membership.role_updated",
             household_id=membership.household_id,
@@ -297,7 +323,16 @@ def remove_member(
         target = _load_target(session, membership.household_id, target_membership_id)
         if target.role.name == RoleEnum.OWNER.value:
             _guard_last_owner(session, membership.household_id)
+        removed_role = target.role.name
         membership_repo.remove(session, target)
+        audit_service.audit(
+            session,
+            membership,
+            "membership.removed",
+            "membership",
+            target_id=target_membership_id,
+            metadata={"role": removed_role},
+        )
         log.info(
             "membership.removed",
             household_id=membership.household_id,
@@ -314,6 +349,13 @@ def delete_household(*, membership: MembershipContext, household_id: str) -> Non
         if household is None or household.deleted_at is not None:
             raise HouseholdNotFound()
         household_repo.soft_delete(session, household)
+        audit_service.audit(
+            session,
+            membership,
+            "household.deleted",
+            "household",
+            target_id=membership.household_id,
+        )
         log.info("household.deleted", household_id=membership.household_id)
 
 

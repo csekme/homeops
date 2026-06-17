@@ -1,1 +1,1 @@
-Következő: 4.8
+Következő: 4.7

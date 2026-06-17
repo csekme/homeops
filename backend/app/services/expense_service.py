@@ -20,6 +20,7 @@ from app.domain.money import InvalidMoney, Money
 from app.logging_config import get_logger
 from app.repositories import expenses as expense_repo
 from app.security.rbac import MembershipContext, require_permission
+from app.services import audit_service
 from app.services.exceptions import ExpenseNotFound, InvalidExpense
 
 log = get_logger("homeops.expenses")
@@ -154,6 +155,9 @@ def delete(membership: MembershipContext, expense_id: str) -> None:
         if expense is None:
             raise ExpenseNotFound()
         expense_repo.soft_delete(session, expense)
+        audit_service.audit(
+            session, membership, "expense.deleted", "expense", target_id=expense_id
+        )
         log.info(
             "expense.deleted", household_id=membership.household_id, expense_id=expense_id
         )
