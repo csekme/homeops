@@ -66,8 +66,91 @@ _INVITATION_COPY: dict[str, dict[str, str]] = {
 }
 
 
+# Obligation reminder copy. ``{title}`` / ``{due_date}`` are interpolated per message.
+_OBLIGATION_DUE_COPY: dict[str, dict[str, str]] = {
+    "hu": {
+        "subject": "Emlékeztető: „{title}” hamarosan esedékes",
+        "heading": "Közelgő teendő",
+        "intro": "A(z) „{title}” teendő hamarosan esedékes.",
+        "detail": "Esedékesség: {due_date}",
+        "cta": "Teendő megnyitása",
+        "footer": "Ezt az emlékeztetőt a HomeOps küldte. A beállításoknál kikapcsolhatod.",
+    },
+    "en": {
+        "subject": "Reminder: “{title}” is due soon",
+        "heading": "Upcoming obligation",
+        "intro": "Your “{title}” obligation is due soon.",
+        "detail": "Due date: {due_date}",
+        "cta": "Open obligation",
+        "footer": "HomeOps sent you this reminder. You can turn it off in settings.",
+    },
+}
+
+_OVERDUE_COPY: dict[str, dict[str, str]] = {
+    "hu": {
+        "subject": "Lejárt: „{title}”",
+        "heading": "Lejárt teendő",
+        "intro": "A(z) „{title}” teendő lejárt.",
+        "detail": "Volt esedékesség: {due_date}",
+        "cta": "Teendő megnyitása",
+        "footer": "Ezt az emlékeztetőt a HomeOps küldte. A beállításoknál kikapcsolhatod.",
+    },
+    "en": {
+        "subject": "Overdue: “{title}”",
+        "heading": "Overdue obligation",
+        "intro": "Your “{title}” obligation is overdue.",
+        "detail": "Was due: {due_date}",
+        "cta": "Open obligation",
+        "footer": "HomeOps sent you this reminder. You can turn it off in settings.",
+    },
+}
+
+
 def _copy(locale: str) -> dict[str, str]:
     return _ACTIVATION_COPY.get(locale, _ACTIVATION_COPY["hu"])
+
+
+def _obligation_reminder_email(
+    *,
+    copy_table: dict[str, dict[str, str]],
+    to: str,
+    title: str,
+    due_date: str,
+    url: str,
+    locale: str,
+) -> EmailMessage:
+    raw = copy_table.get(locale, copy_table["hu"])
+    copy = {key: value.format(title=title, due_date=due_date) for key, value in raw.items()}
+    context = {"url": url, **copy}
+    html = _env.get_template("obligation_reminder.html.j2").render(**context)
+    text = _env.get_template("obligation_reminder.txt.j2").render(**context)
+    return EmailMessage(to=to, subject=copy["subject"], html_body=html, text_body=text)
+
+
+def build_obligation_due_email(
+    *, to: str, title: str, due_date: str, url: str, locale: str = "hu"
+) -> EmailMessage:
+    return _obligation_reminder_email(
+        copy_table=_OBLIGATION_DUE_COPY,
+        to=to,
+        title=title,
+        due_date=due_date,
+        url=url,
+        locale=locale,
+    )
+
+
+def build_overdue_email(
+    *, to: str, title: str, due_date: str, url: str, locale: str = "hu"
+) -> EmailMessage:
+    return _obligation_reminder_email(
+        copy_table=_OVERDUE_COPY,
+        to=to,
+        title=title,
+        due_date=due_date,
+        url=url,
+        locale=locale,
+    )
 
 
 def _invitation_copy(locale: str) -> dict[str, str]:

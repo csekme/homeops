@@ -14,6 +14,7 @@ def register_blueprints(app: APIFlask) -> None:
     from app.api.expenses import expenses_bp
     from app.api.health import health_bp
     from app.api.households import households_bp
+    from app.api.notifications import notifications_bp
     from app.api.obligations import obligations_bp
     from app.api.totp import totp_bp
 
@@ -24,3 +25,4 @@ def register_blueprints(app: APIFlask) -> None:
     app.register_blueprint(obligations_bp)
     app.register_blueprint(expenses_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(notifications_bp)

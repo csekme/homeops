@@ -26,11 +26,11 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TenantMixin, TimestampMixin, UUIDPrimaryKeyMixin
-from app.domain.enums import ObligationStatus, UserStatus
+from app.domain.enums import NotificationStatus, ObligationStatus, UserStatus
 from app.domain.enums import Role as RoleEnum
 
 CURRENCY_CHECK = "currency_iso4217"
@@ -252,6 +252,72 @@ class AuditLog(UUIDPrimaryKeyMixin, TenantMixin, Base):
     )
 
 
+class Notification(UUIDPrimaryKeyMixin, TimestampMixin, TenantMixin, Base):
+    """Transactional outbox row (plan §4.7).
+
+    Tenant-scoped (``household_id`` via ``TenantMixin``) → RLS applies; the scheduler and
+    worker touch it in no-tenant (bypass) mode since they cross households. Idempotency is
+    the ``dedup_key`` UNIQUE constraint + ``ON CONFLICT DO NOTHING`` on enqueue. The worker
+    claims due rows with ``FOR UPDATE SKIP LOCKED`` and retries with exponential backoff.
+    """
+
+    __tablename__ = "notifications"
+
+    type: Mapped[str] = mapped_column(String(32), nullable=False)
+    channel: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=NotificationStatus.PENDING.value
+    )
+    scheduled_for: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    dedup_key: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "type IN ('OBLIGATION_DUE','PAYMENT_DUE','OVERDUE','INVITATION','WEEKLY_DIGEST')",
+            name="type_valid",
+        ),
+        CheckConstraint("channel IN ('EMAIL')", name="channel_valid"),
+        CheckConstraint(
+            "status IN ('PENDING','SENT','FAILED','DEAD')", name="status_valid"
+        ),
+        # Worker claim: due rows by (status, next_attempt_at).
+        Index("ix_notifications_status_next_attempt", "status", "next_attempt_at"),
+    )
+
+
+class NotificationPreference(UUIDPrimaryKeyMixin, TimestampMixin, TenantMixin, Base):
+    """Per (user, household, type, channel) delivery opt-in (plan §4.7).
+
+    ``lead_times`` holds days-before-due overrides (empty → use the obligation's own
+    ``lead_time_days``). Tenant-scoped → RLS applies; a member manages only their own rows.
+    """
+
+    __tablename__ = "notification_preferences"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    type: Mapped[str] = mapped_column(String(32), nullable=False)
+    channel: Mapped[str] = mapped_column(String(16), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    lead_times: Mapped[list[int]] = mapped_column(ARRAY(Integer), nullable=False, default=list)
+
+    __table_args__ = (
+        CheckConstraint(
+            "type IN ('OBLIGATION_DUE','PAYMENT_DUE','OVERDUE','INVITATION','WEEKLY_DIGEST')",
+            name="type_valid",
+        ),
+        CheckConstraint("channel IN ('EMAIL')", name="channel_valid"),
+        UniqueConstraint("user_id", "household_id", "type", "channel"),
+    )
+
+
 class RefreshToken(UUIDPrimaryKeyMixin, Base):
     """Server-side refresh token record (plan §3.5c/§3.5d).
 
@@ -368,6 +434,8 @@ __all__ = [
     "Household",
     "Invitation",
     "Membership",
+    "Notification",
+    "NotificationPreference",
     "Obligation",
     "RecoveryCode",
     "RefreshToken",

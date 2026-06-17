@@ -76,6 +76,12 @@ class Config:
         self.MAIL_FROM = os.environ.get("MAIL_FROM", "HomeOps <no-reply@homeops.localhost>")
         self.MAIL_DEFAULT_LOCALE = os.environ.get("MAIL_DEFAULT_LOCALE", "hu")
 
+        # Notifications outbox worker/scheduler (plan §4.7), tuned via env in prod.
+        self.NOTIFICATION_BATCH_SIZE = _int("NOTIFICATION_BATCH_SIZE", 20)
+        self.NOTIFICATION_MAX_ATTEMPTS = _int("NOTIFICATION_MAX_ATTEMPTS", 5)
+        self.NOTIFICATION_BACKOFF_BASE_SECONDS = _int("NOTIFICATION_BACKOFF_BASE_SECONDS", 60)
+        self.NOTIFICATION_POLL_INTERVAL_SECONDS = _int("NOTIFICATION_POLL_INTERVAL_SECONDS", 30)
+
         # SecretCipher KEK (plan §10.5) — base64 32-byte key.
         self.SECRET_KEK = os.environ.get("SECRET_KEK", _DEV_SECRET_KEK)
 

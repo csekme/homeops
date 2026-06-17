@@ -10,10 +10,12 @@ from apiflask import Schema
 from apiflask.fields import Boolean, Date, DateTime, Email, Integer, List, Nested, String
 from apiflask.validators import Length, OneOf, Range, Regexp
 
-from app.domain.enums import ObligationStatus
+from app.domain.enums import NotificationChannel, NotificationType, ObligationStatus
 from app.domain.enums import Role as RoleEnum
 
 _OBLIGATION_STATUSES = [s.value for s in ObligationStatus]
+_NOTIFICATION_TYPES = [t.value for t in NotificationType]
+_NOTIFICATION_CHANNELS = [c.value for c in NotificationChannel]
 _CURRENCY_REGEX = r"^[A-Z]{3}$"
 
 # Roles that can be assigned to invitees / existing members (OWNER is granted only by
@@ -276,3 +278,20 @@ class DashboardOut(Schema):
     alerts = List(Nested(AlertOut))
     monthly_overview = Nested(MonthlyOverviewOut)
     due_payments = List(Nested(ObligationOut))
+
+
+# ── Notification preferences (plan §4.7) ─────────────────────────────────────────────
+
+
+class NotificationPreferenceIn(Schema):
+    type = String(required=True, validate=OneOf(_NOTIFICATION_TYPES))
+    channel = String(required=True, validate=OneOf(_NOTIFICATION_CHANNELS))
+    enabled = Boolean(load_default=True)
+    lead_times = List(Integer(validate=Range(min=0)), load_default=list)
+
+
+class NotificationPreferenceOut(Schema):
+    type = String()
+    channel = String()
+    enabled = Boolean()
+    lead_times = List(Integer())
