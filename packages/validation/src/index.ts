@@ -55,15 +55,33 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-export const registerSchema = z.object({
-  email: emailSchema,
-  password: passwordSchema,
-  displayName: shortText(120),
-});
+// Confirm-password mismatch carries a stable `params.i18n` key (no English leaks) that each
+// client's Zod errorMap localizes — same mechanism as the field-level codes above.
+const passwordMismatch = { path: ['confirmPassword'], params: { i18n: 'passwordMismatch' } };
+
+export const registerSchema = z
+  .object({
+    email: emailSchema,
+    password: passwordSchema,
+    confirmPassword: z.string().min(1),
+    displayName: shortText(120),
+  })
+  .refine((data) => data.password === data.confirmPassword, passwordMismatch);
 
 export const activateSchema = z.object({
   token: z.string().min(1),
 });
+
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+
+export const resetPasswordSchema = z
+  .object({
+    password: passwordSchema,
+    confirmPassword: z.string().min(1),
+  })
+  .refine((data) => data.password === data.confirmPassword, passwordMismatch);
 
 /* ------------------------------------------------------------------ */
 /* Two-factor authentication (TOTP)                                    */
@@ -155,6 +173,8 @@ export const serviceSchema = z.object({
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ActivateInput = z.infer<typeof activateSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type TotpChallengeInput = z.infer<typeof totpChallengeSchema>;
 export type TotpConfirmInput = z.infer<typeof totpConfirmSchema>;
 export type TotpDisableInput = z.infer<typeof totpDisableSchema>;

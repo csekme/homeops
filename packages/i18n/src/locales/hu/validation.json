@@ -6,5 +6,6 @@
   "currency": "Háromjegyű ISO-4217 pénznemkód szükséges.",
   "integer": "Egész szám szükséges.",
   "date": "Érvényes dátum szükséges (ÉÉÉÉ-HH-NN).",
-  "invalid": "Érvénytelen érték."
+  "invalid": "Érvénytelen érték.",
+  "passwordMismatch": "A két jelszó nem egyezik."
 }

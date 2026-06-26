@@ -1,23 +1,19 @@
 import { useGetMe, useLogout } from '@homeops/api-client';
-import { ChevronsUpDownIcon, LogOutIcon, PlusIcon, SettingsIcon } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronsUpDownIcon, LogOutIcon, SettingsIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { CreateHouseholdDialog } from '@/components/create-household-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
-import { useActiveHousehold, useHouseholdSwitcher } from '@/features/households/use-households';
+import { useActiveHousehold } from '@/features/households/use-households';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -26,7 +22,11 @@ function initials(name: string): string {
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
 }
 
-/** Canonical shadcn "NavUser" — account menu + household switcher pinned to the SidebarFooter. */
+/**
+ * Canonical shadcn "NavUser" — the account menu pinned to the SidebarFooter. Household
+ * switching now lives in the SidebarHeader's HouseholdSwitcher (feature plan §#3); this menu
+ * keeps account-scoped actions (settings, logout) and surfaces the user's role for context.
+ */
 export function NavUser() {
   const { t } = useTranslation();
   const { t: th } = useTranslation('households');
@@ -34,20 +34,12 @@ export function NavUser() {
   const { isMobile } = useSidebar();
   const { data: user } = useGetMe();
   const logout = useLogout();
-  const { activeHouseholdId } = useActiveHousehold();
-  const { switchTo, isPending: switching } = useHouseholdSwitcher();
-  const [createOpen, setCreateOpen] = useState(false);
+  const { role } = useActiveHousehold();
 
   if (!user) return null;
 
-  const memberships = user.memberships ?? [];
-
   const onLogout = () =>
     logout.mutate(undefined, { onSettled: () => navigate('/login', { replace: true }) });
-
-  const onSelectHousehold = (householdId: string) => {
-    if (householdId !== activeHouseholdId) switchTo(householdId);
-  };
 
   return (
     <SidebarMenu>
@@ -76,40 +68,19 @@ export function NavUser() {
             align="end"
             sideOffset={4}
           >
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              {th('switcher.label')}
+            <DropdownMenuLabel className="flex flex-col gap-0.5 font-normal">
+              <span className="truncate text-sm font-medium">{user.display_name}</span>
+              <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+              {role ? (
+                <span className="truncate text-xs text-muted-foreground">{th(`roles.${role}`)}</span>
+              ) : null}
             </DropdownMenuLabel>
-            {memberships.length > 0 ? (
-              <DropdownMenuRadioGroup
-                value={activeHouseholdId}
-                onValueChange={onSelectHousehold}
-              >
-                {memberships.map((m) => (
-                  <DropdownMenuRadioItem
-                    key={m.household_id}
-                    value={m.household_id ?? ''}
-                    disabled={switching}
-                  >
-                    <span className="truncate">{m.household_name}</span>
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            ) : (
-              <DropdownMenuItem disabled className="text-xs">
-                {th('switcher.none')}
-              </DropdownMenuItem>
-            )}
 
-            <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
-              <PlusIcon />
-              {th('switcher.create')}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => navigate('/settings')}>
+              <SettingsIcon />
+              {t('nav.settings')}
             </DropdownMenuItem>
-            {activeHouseholdId ? (
-              <DropdownMenuItem onSelect={() => navigate('/household')}>
-                <SettingsIcon />
-                {th('switcher.manage')}
-              </DropdownMenuItem>
-            ) : null}
 
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onLogout} disabled={logout.isPending}>
@@ -119,8 +90,6 @@ export function NavUser() {
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
-
-      <CreateHouseholdDialog open={createOpen} onOpenChange={setCreateOpen} />
     </SidebarMenu>
   );
 }

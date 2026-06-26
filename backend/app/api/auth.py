@@ -15,11 +15,13 @@ from flask import after_this_request, current_app, request
 
 from app.api.schemas import (
     ActivateIn,
+    ForgotPasswordIn,
     LoginIn,
     LoginOut,
     MessageOut,
     RefreshOut,
     RegisterIn,
+    ResetPasswordIn,
     UserOut,
 )
 from app.api.security import bearer_auth
@@ -31,6 +33,7 @@ from app.services.exceptions import (
     AccountNotActivated,
     InvalidActivationToken,
     InvalidCredentials,
+    InvalidPasswordResetToken,
     InvalidRefreshSession,
     MfaRequired,
 )
@@ -154,6 +157,42 @@ def activate(json_data: dict) -> dict[str, str]:
     except InvalidActivationToken:
         abort(400, "Invalid or expired activation token.")
     return {"message": "Account activated. You can now sign in."}
+
+
+@auth_bp.post("/forgot-password")
+@auth_bp.input(ForgotPasswordIn)
+@auth_bp.output(MessageOut, status_code=202)
+@auth_bp.doc(
+    summary="Request a password-reset email (generic response, no user enumeration).",
+    operation_id="forgotPassword",
+    tags=["Auth"],
+)
+@limiter.limit("10 per hour")
+def forgot_password(json_data: dict) -> dict[str, str]:
+    auth_service.request_password_reset(
+        email=json_data["email"], locale=json_data.get("locale")
+    )
+    # Generic response regardless of whether the email is registered (no enumeration).
+    return {"message": "If the address is valid, a password-reset email has been sent."}
+
+
+@auth_bp.post("/reset-password")
+@auth_bp.input(ResetPasswordIn)
+@auth_bp.output(MessageOut)
+@auth_bp.doc(
+    summary="Set a new password with the emailed reset token; revokes all sessions.",
+    operation_id="resetPassword",
+    tags=["Auth"],
+)
+@limiter.limit("20 per hour")
+def reset_password(json_data: dict) -> dict[str, str]:
+    try:
+        auth_service.reset_password(
+            raw_token=json_data["token"], new_password=json_data["password"]
+        )
+    except InvalidPasswordResetToken:
+        abort(400, "Invalid or expired password-reset token.")
+    return {"message": "Your password has been reset. You can now sign in."}
 
 
 @auth_bp.post("/login")

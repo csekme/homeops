@@ -27,7 +27,11 @@ export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
   const { preview, isLoading, isError } = useInvitePreview(token);
   const { data: user } = useGetMe();
-  const { onAccept, isPending, isError: acceptError, errorKey } = useAcceptInvite(token);
+  const { onAccept, onDecline, isPending, isDeclining, isError: acceptError, errorKey } =
+    useAcceptInvite(token);
+
+  // Carry the invite token through auth so the user returns here to accept after signing in.
+  const redirectParam = token ? `?redirect=${encodeURIComponent(`/invite/${token}`)}` : '';
 
   if (isLoading) {
     return (
@@ -81,10 +85,16 @@ export default function InvitePage() {
         ) : null}
 
         {signedInMatches ? (
-          <Button onClick={onAccept} disabled={isPending}>
-            {isPending ? <Loader2Icon className="size-4 animate-spin" /> : null}
-            {t('accept.accept')}
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button onClick={onAccept} disabled={isPending || isDeclining}>
+              {isPending ? <Loader2Icon className="size-4 animate-spin" /> : null}
+              {t('accept.accept')}
+            </Button>
+            <Button variant="outline" onClick={onDecline} disabled={isPending || isDeclining}>
+              {isDeclining ? <Loader2Icon className="size-4 animate-spin" /> : null}
+              {t('accept.decline')}
+            </Button>
+          </div>
         ) : signedInWrong ? (
           <Alert variant="destructive">
             <AlertTitle>{t('accept.wrongAccount', { email: preview.email })}</AlertTitle>
@@ -96,10 +106,10 @@ export default function InvitePage() {
             </p>
             <div className="flex justify-center gap-2">
               <Button asChild>
-                <Link to="/register">{t('accept.register')}</Link>
+                <Link to={`/register${redirectParam}`}>{t('accept.register')}</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link to="/login">{t('accept.login')}</Link>
+                <Link to={`/login${redirectParam}`}>{t('accept.login')}</Link>
               </Button>
             </div>
           </>

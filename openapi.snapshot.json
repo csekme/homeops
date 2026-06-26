@@ -33,6 +33,25 @@
         ],
         "type": "object"
       },
+      "ForgotPasswordIn": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "locale": {
+            "default": "hu",
+            "maxLength": 2,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "type": "object"
+      },
       "HTTPError": {
         "properties": {
           "detail": {
@@ -176,14 +195,15 @@
       "InviteAcceptIn": {
         "additionalProperties": false,
         "properties": {
+          "invitation_id": {
+            "minLength": 1,
+            "type": "string"
+          },
           "token": {
             "minLength": 1,
             "type": "string"
           }
         },
-        "required": [
-          "token"
-        ],
         "type": "object"
       },
       "InviteCreateIn": {
@@ -208,6 +228,20 @@
           "email",
           "role"
         ],
+        "type": "object"
+      },
+      "InviteDeclineIn": {
+        "additionalProperties": false,
+        "properties": {
+          "invitation_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "token": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "LoginIn": {
@@ -331,6 +365,42 @@
         },
         "type": "object"
       },
+      "MyInvitationListOut": {
+        "additionalProperties": false,
+        "properties": {
+          "invitations": {
+            "items": {
+              "$ref": "#/components/schemas/MyInvitationOut"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "MyInvitationOut": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "household_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "RecoveryCodesOut": {
         "additionalProperties": false,
         "properties": {
@@ -400,6 +470,25 @@
           "display_name",
           "email",
           "password"
+        ],
+        "type": "object"
+      },
+      "ResetPasswordIn": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "token": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "token"
         ],
         "type": "object"
       },
@@ -599,6 +688,47 @@
         ]
       }
     },
+    "/api/auth/forgot-password": {
+      "post": {
+        "operationId": "forgotPassword",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Request a password-reset email (generic response, no user enumeration).",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/auth/login": {
       "post": {
         "operationId": "login",
@@ -750,6 +880,47 @@
           }
         },
         "summary": "Register a new account; emails a single-use activation link.",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "operationId": "resetPassword",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Set a new password with the emailed reset token; revokes all sessions.",
         "tags": [
           "Auth"
         ]
@@ -1778,7 +1949,87 @@
             "BearerAuth": []
           }
         ],
-        "summary": "Accept an invitation and switch into the household."
+        "summary": "Accept an invitation (by token or id) and switch into the household."
+      }
+    },
+    "/api/invitations/decline": {
+      "post": {
+        "operationId": "declineInvitation",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteDeclineIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Decline a pending invitation addressed to the caller."
+      }
+    },
+    "/api/invitations/mine": {
+      "get": {
+        "operationId": "listMyInvitations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyInvitationListOut"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List the pending invitations addressed to the authenticated user."
       }
     },
     "/api/invitations/{token}": {
@@ -1820,11 +2071,6 @@
       }
     }
   },
-  "servers": [
-    {
-      "url": "http://localhost/"
-    }
-  ],
   "tags": [
     {
       "description": "Registration, activation, login and refresh-token lifecycle.",

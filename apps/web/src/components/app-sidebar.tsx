@@ -10,6 +10,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { NavLink, useLocation } from 'react-router-dom';
 
+import { HouseholdSwitcher } from '@/components/household-switcher';
 import { NavUser } from '@/components/nav-user';
 import {
   Sidebar,
@@ -49,18 +50,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <NavLink to="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground">
-                  H
-                </div>
-                <span className="text-base font-semibold">{t('appName')}</span>
-              </NavLink>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <HouseholdSwitcher />
       </SidebarHeader>
 
       <SidebarContent>

@@ -20,6 +20,7 @@ const SEGMENT_LABEL_KEYS: Record<string, string> = {
   services: 'nav.services',
   documents: 'nav.documents',
   settings: 'nav.settings',
+  household: 'households',
 };
 
 export function AppShell() {
@@ -48,7 +49,11 @@ export function AppShell() {
           </div>
         </header>
         <ScrollArea className="flex-1">
-          <div className="p-4 md:p-6">
+          {/* Global content container: one left-aligned, width-capped band shared by every
+              page, with consistent responsive padding. Pages render their content into it and
+              may add a narrower self-cap (forms/settings) — they never set their own outer
+              padding or page max-width. See .claude/prompts/frontend.md (Elrendezés). */}
+          <div className="w-full max-w-7xl p-4 md:p-6">
             <Outlet />
           </div>
         </ScrollArea>

@@ -77,11 +77,17 @@
     "previewTitle": "You've been invited",
     "previewDescription": "You've been invited to join {{household}} as {{role}}.",
     "accept": "Accept invitation",
+    "decline": "Decline",
     "accepted": "You joined {{household}}.",
     "signInPrompt": "Sign in or register with {{email}} to accept this invitation.",
     "register": "Register",
     "login": "Sign in",
     "wrongAccount": "This invitation was sent to {{email}}. Sign in with that address to accept."
+  },
+  "myInvitations": {
+    "title": "Pending invitations",
+    "description": "You've been invited to the following household(s).",
+    "item": "{{household}} — as {{role}}"
   },
   "roles": {
     "OWNER": "Owner",

@@ -26,6 +26,13 @@ def add(session: Session, user: User) -> User:
     return user
 
 
+def set_password_hash(session: Session, user: User, *, password_hash: str) -> User:
+    """Replace the user's stored password hash (password reset / change)."""
+    user.password_hash = password_hash
+    session.flush()
+    return user
+
+
 def list_memberships(session: Session, user_id: uuid.UUID | str) -> list[Membership]:
     """A user's memberships in *live* households (cross-household — no-tenant mode, plan §3.6).
 

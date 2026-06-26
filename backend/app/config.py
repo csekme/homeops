@@ -64,6 +64,9 @@ class Config:
         self.ACTIVATION_TOKEN_TTL_HOURS = _int("ACTIVATION_TOKEN_TTL_HOURS", 24)
         self.PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://homeops.localhost")
 
+        # Password reset flow (feature plan §#1). Short-lived by design.
+        self.PASSWORD_RESET_TOKEN_TTL_HOURS = _int("PASSWORD_RESET_TOKEN_TTL_HOURS", 1)
+
         # Household invitation flow (feature plan §Backend).
         self.INVITATION_TOKEN_TTL_HOURS = _int("INVITATION_TOKEN_TTL_HOURS", 168)
 

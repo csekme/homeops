@@ -37,6 +37,12 @@ const errorMap: z.ZodErrorMap = (issue, ctx) => {
     case z.ZodIssueCode.invalid_string:
       if (issue.validation === 'email') return { message: tv('email') };
       break;
+    case z.ZodIssueCode.custom: {
+      // Refinements (e.g. confirm-password mismatch) carry a stable key in params.i18n.
+      const key = (issue.params as { i18n?: string } | undefined)?.i18n;
+      if (key) return { message: tv(key) };
+      break;
+    }
     default:
       break;
   }

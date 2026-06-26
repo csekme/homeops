@@ -65,7 +65,9 @@ export default function HouseholdPage() {
   const active = (households?.households ?? []).find((h) => h.id === activeHouseholdId);
 
   return (
-    <div className="flex flex-col gap-6">
+    // Left-aligned, fixed readable width — the standard admin/settings layout (content anchored
+    // to the start of the content area; surplus space falls to the right, not symmetric margins).
+    <div className="flex w-full max-w-4xl flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{active?.name ?? t('settings.title')}</h1>
         <p className="text-muted-foreground">{t('settings.description')}</p>
@@ -124,13 +126,14 @@ function GeneralTab({
   const { errors } = form.formState;
 
   return (
-    <div className="flex max-w-xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle>{t('settings.tabs.general')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+          {/* Cap the single field to a sensible measure — a full-width text input reads as broken. */}
+          <form onSubmit={onSubmit} className="flex max-w-md flex-col gap-4" noValidate>
             <Field data-invalid={!!errors.name}>
               <FieldLabel htmlFor="rename-name">{t('general.nameLabel')}</FieldLabel>
               <Input
@@ -204,11 +207,11 @@ function MembersTab({ householdId, canManage }: { householdId: string; canManage
   const [confirm, setConfirm] = useState<{ userId: string; self: boolean } | null>(null);
 
   if (isLoading) {
-    return <Skeleton className="h-40 w-full max-w-xl" />;
+    return <Skeleton className="h-40 w-full" />;
   }
 
   return (
-    <Card className="max-w-2xl">
+    <Card>
       <CardHeader>
         <CardTitle>{t('members.title')}</CardTitle>
       </CardHeader>
@@ -328,7 +331,7 @@ function InvitationsTab({ householdId }: { householdId: string }) {
   const { errors } = form.formState;
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle>{t('invitations.title')}</CardTitle>

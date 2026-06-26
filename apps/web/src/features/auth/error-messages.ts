@@ -11,3 +11,11 @@ export function authErrorKey(error: unknown): string {
   }
   return 'errors.generic';
 }
+
+/** Reset-password specific mapping: a 400 means the token is invalid/expired/used. */
+export function resetPasswordErrorKey(error: unknown): string {
+  if (error instanceof ApiRequestError && error.status === 400) {
+    return 'errors.invalidResetToken';
+  }
+  return 'errors.generic';
+}

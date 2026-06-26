@@ -18,6 +18,7 @@ import type {
 
 import type {
   ActivateIn,
+  ForgotPasswordIn,
   HTTPError,
   LoginIn,
   LoginOut,
@@ -26,6 +27,7 @@ import type {
   RecoveryRegenerateIn,
   RefreshOut,
   RegisterIn,
+  ResetPasswordIn,
   TotpConfirmIn,
   TotpDisableIn,
   TotpSetupOut,
@@ -113,6 +115,88 @@ export const useActivate = <
   TContext
 > => {
   const mutationOptions = getActivateMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary Request a password-reset email (generic response, no user enumeration).
+ */
+export const forgotPassword = (
+  forgotPasswordIn: ForgotPasswordIn,
+  signal?: AbortSignal,
+) => {
+  return customInstance<MessageOut>({
+    url: `/api/auth/forgot-password`,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    data: forgotPasswordIn,
+    signal,
+  });
+};
+
+export const getForgotPasswordMutationOptions = <
+  TError = ValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof forgotPassword>>,
+    TError,
+    { data: ForgotPasswordIn },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof forgotPassword>>,
+  TError,
+  { data: ForgotPasswordIn },
+  TContext
+> => {
+  const mutationKey = ["forgotPassword"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof forgotPassword>>,
+    { data: ForgotPasswordIn }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return forgotPassword(data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ForgotPasswordMutationResult = NonNullable<
+  Awaited<ReturnType<typeof forgotPassword>>
+>;
+export type ForgotPasswordMutationBody = ForgotPasswordIn;
+export type ForgotPasswordMutationError = ValidationError;
+
+/**
+ * @summary Request a password-reset email (generic response, no user enumeration).
+ */
+export const useForgotPassword = <
+  TError = ValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof forgotPassword>>,
+    TError,
+    { data: ForgotPasswordIn },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof forgotPassword>>,
+  TError,
+  { data: ForgotPasswordIn },
+  TContext
+> => {
+  const mutationOptions = getForgotPasswordMutationOptions(options);
 
   return useMutation(mutationOptions);
 };
@@ -475,6 +559,88 @@ export const useRegister = <
   TContext
 > => {
   const mutationOptions = getRegisterMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary Set a new password with the emailed reset token; revokes all sessions.
+ */
+export const resetPassword = (
+  resetPasswordIn: ResetPasswordIn,
+  signal?: AbortSignal,
+) => {
+  return customInstance<MessageOut>({
+    url: `/api/auth/reset-password`,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    data: resetPasswordIn,
+    signal,
+  });
+};
+
+export const getResetPasswordMutationOptions = <
+  TError = ValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetPassword>>,
+    TError,
+    { data: ResetPasswordIn },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resetPassword>>,
+  TError,
+  { data: ResetPasswordIn },
+  TContext
+> => {
+  const mutationKey = ["resetPassword"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resetPassword>>,
+    { data: ResetPasswordIn }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return resetPassword(data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResetPasswordMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resetPassword>>
+>;
+export type ResetPasswordMutationBody = ResetPasswordIn;
+export type ResetPasswordMutationError = ValidationError;
+
+/**
+ * @summary Set a new password with the emailed reset token; revokes all sessions.
+ */
+export const useResetPassword = <
+  TError = ValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetPassword>>,
+    TError,
+    { data: ResetPasswordIn },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resetPassword>>,
+  TError,
+  { data: ResetPasswordIn },
+  TContext
+> => {
+  const mutationOptions = getResetPasswordMutationOptions(options);
 
   return useMutation(mutationOptions);
 };

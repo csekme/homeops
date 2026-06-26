@@ -4,12 +4,14 @@ import { AppShell } from '@/components/app-shell';
 import { RequireAuth } from '@/components/require-auth';
 import ActivatePage from '@/pages/activate';
 import DashboardPage from '@/pages/dashboard';
+import ForgotPasswordPage from '@/pages/forgot-password';
 import HouseholdPage from '@/pages/household';
 import InvitePage from '@/pages/invite';
 import LoginPage from '@/pages/login';
 import LoginVerifyPage from '@/pages/login-verify';
 import { PlaceholderPage } from '@/pages/placeholder';
 import RegisterPage from '@/pages/register';
+import ResetPasswordPage from '@/pages/reset-password';
 import SettingsPage from '@/pages/settings';
 
 export default function App() {
@@ -19,6 +21,8 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/login/verify" element={<LoginVerifyPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       <Route path="/activate/:token" element={<ActivatePage />} />
       <Route path="/invite/:token" element={<InvitePage />} />
 

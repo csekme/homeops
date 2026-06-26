@@ -8,5 +8,7 @@
 
 export interface InviteAcceptIn {
   /** @minLength 1 */
-  token: string;
+  invitation_id?: string;
+  /** @minLength 1 */
+  token?: string;
 }

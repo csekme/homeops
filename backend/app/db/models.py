@@ -179,6 +179,31 @@ class ActivationToken(UUIDPrimaryKeyMixin, Base):
     __table_args__ = (Index("ix_activation_tokens_user_id", "user_id"),)
 
 
+class PasswordResetToken(UUIDPrimaryKeyMixin, Base):
+    """Single-use, expiring password-reset token (feature plan §#1). Hash-only storage.
+
+    Mirrors ``ActivationToken``: only the SHA-256 hash of the opaque token is stored, the
+    token is one-shot (``used_at``) and short-lived (``expires_at``). User-scoped (no
+    ``household_id``) → not subject to RLS, accessed only in no-tenant mode.
+    """
+
+    __tablename__ = "password_reset_tokens"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (Index("ix_password_reset_tokens_user_id", "user_id"),)
+
+
 class Invitation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """Email-bound, single-use, expiring household invitation (feature plan §Backend).
 
@@ -205,6 +230,10 @@ class Invitation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Invitee-side rejection (feature plan §#4), distinct from ``revoked_at`` (inviter-side
+    # withdrawal). A declined invite is no longer pending, freeing the (household, email) slot
+    # for a fresh invite.
+    declined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     invited_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -213,14 +242,17 @@ class Invitation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     role: Mapped[Role] = relationship()
 
     __table_args__ = (
-        # One live (pending) invite per (household, email); accepted/revoked rows don't count
-        # so a re-invite after revoke/accept is allowed. Mirrors the migration's partial index.
+        # One live (pending) invite per (household, email); accepted/revoked/declined rows
+        # don't count so a re-invite afterwards is allowed. Mirrors the migration's partial
+        # index.
         Index(
             "uq_invitations_pending_email",
             "household_id",
             "email",
             unique=True,
-            postgresql_where=text("accepted_at IS NULL AND revoked_at IS NULL"),
+            postgresql_where=text(
+                "accepted_at IS NULL AND revoked_at IS NULL AND declined_at IS NULL"
+            ),
         ),
     )
 
@@ -287,6 +319,7 @@ __all__ = [
     "Household",
     "Invitation",
     "Membership",
+    "PasswordResetToken",
     "RecoveryCode",
     "RefreshToken",
     "Role",

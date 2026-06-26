@@ -23,9 +23,10 @@ from app.db.rls import session_scope
 from app.domain.enums import UserStatus
 from app.extensions import get_email_sender, get_passwords
 from app.logging_config import get_logger
-from app.notifications.email.messages import build_activation_email
+from app.notifications.email.messages import build_activation_email, build_password_reset_email
 from app.repositories import households as households_repo
 from app.repositories import memberships as membership_repo
+from app.repositories import password_reset_tokens as reset_repo
 from app.repositories import users as user_repo
 from app.security import refresh_tokens
 from app.security.csrf import issue_csrf_token
@@ -35,6 +36,7 @@ from app.services.exceptions import (
     AccountNotActivated,
     InvalidActivationToken,
     InvalidCredentials,
+    InvalidPasswordResetToken,
     InvalidRefreshSession,
     MfaRequired,
 )
@@ -128,6 +130,63 @@ def activate(*, raw_token: str) -> None:
             user.status = UserStatus.ACTIVE.value
             user.activated_at = datetime.now(UTC)
         log.info("activate.success", user_id=str(user.id))
+
+
+def request_password_reset(*, email: str, locale: str | None = None) -> None:
+    """Email a single-use reset link — but only if the address belongs to an ACTIVE user.
+
+    Generic by design (plan §3.5f): the caller always gets the same accepted response, so this
+    never reveals whether an address is registered. Mirrors ``register``'s no-enumeration
+    contract; non-existent / non-active accounts are silently ignored.
+    """
+    email = email.strip().lower()
+    cfg = current_app.config
+    with session_scope(bypass_tenant=True) as session:
+        user = user_repo.get_by_email(session, email)
+        if user is None or user.status != UserStatus.ACTIVE.value:
+            log.info("password_reset.request_ignored")
+            return
+
+        raw_token = secrets.token_urlsafe(32)
+        reset_repo.create(
+            session,
+            user_id=user.id,
+            token_hash=_hash(raw_token),
+            expires_at=datetime.now(UTC)
+            + timedelta(hours=cfg["PASSWORD_RESET_TOKEN_TTL_HOURS"]),
+        )
+        reset_url = f"{cfg['PUBLIC_BASE_URL']}/reset-password/{raw_token}"
+        get_email_sender().send(
+            build_password_reset_email(
+                to=user.email,
+                reset_url=reset_url,
+                locale=locale or cfg["MAIL_DEFAULT_LOCALE"],
+            )
+        )
+        log.info("password_reset.email_sent", user_id=str(user.id))
+
+
+def reset_password(*, raw_token: str, new_password: str) -> None:
+    """Consume a valid reset token, set the new password, and kill all live sessions.
+
+    Revoking every refresh family is established practice on a password change: any stolen or
+    lingering session must not outlive the reset.
+    """
+    with session_scope(bypass_tenant=True) as session:
+        token = reset_repo.get_by_token_hash(session, _hash(raw_token))
+        if token is None or token.used_at is not None:
+            raise InvalidPasswordResetToken("invalid or used password-reset token")
+        if _as_utc(token.expires_at) <= datetime.now(UTC):
+            raise InvalidPasswordResetToken("expired password-reset token")
+
+        user = user_repo.get_by_id(session, token.user_id)
+        if user is None:  # pragma: no cover — FK guarantees the user exists
+            raise InvalidPasswordResetToken("invalid password-reset token")
+
+        token.used_at = datetime.now(UTC)
+        user_repo.set_password_hash(session, user, password_hash=get_passwords().hash(new_password))
+        refresh_tokens.revoke_all_for_user(session, user.id)
+        log.info("password_reset.completed", user_id=str(user.id))
 
 
 def login(*, email: str, password: str, ip: str | None, user_agent: str | None) -> IssuedSession:

@@ -77,11 +77,17 @@
     "previewTitle": "Meghívást kaptál",
     "previewDescription": "Meghívást kaptál, hogy csatlakozz a(z) {{household}} háztartáshoz mint {{role}}.",
     "accept": "Meghívás elfogadása",
+    "decline": "Elutasítás",
     "accepted": "Csatlakoztál a(z) {{household}} háztartáshoz.",
     "signInPrompt": "Jelentkezz be vagy regisztrálj a(z) {{email}} címmel a meghívó elfogadásához.",
     "register": "Regisztráció",
     "login": "Bejelentkezés",
     "wrongAccount": "Ezt a meghívót a(z) {{email}} címre küldték. Jelentkezz be azzal a címmel az elfogadáshoz."
+  },
+  "myInvitations": {
+    "title": "Függőben lévő meghívók",
+    "description": "Meghívást kaptál az alábbi háztartás(ok)ba.",
+    "item": "{{household}} — mint {{role}}"
   },
   "roles": {
     "OWNER": "Tulajdonos",

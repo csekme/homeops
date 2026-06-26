@@ -6,5 +6,6 @@
   "currency": "Must be a 3-letter ISO-4217 currency code.",
   "integer": "Must be a whole number.",
   "date": "Must be a valid date (YYYY-MM-DD).",
-  "invalid": "Invalid value."
+  "invalid": "Invalid value.",
+  "passwordMismatch": "The two passwords don't match."
 }

@@ -86,6 +86,22 @@ def revoke_family(session: Session, family_id: uuid.UUID) -> None:
     )
 
 
+def revoke_all_for_user(session: Session, user_id: uuid.UUID | str) -> None:
+    """Revoke every live refresh family for a user (password reset, plan §#1).
+
+    Invalidating all sessions on a password change is established practice: a stolen or
+    forgotten session must not survive the reset.
+    """
+    session.execute(
+        update(RefreshToken)
+        .where(
+            RefreshToken.user_id == uuid.UUID(str(user_id)),
+            RefreshToken.revoked_at.is_(None),
+        )
+        .values(revoked_at=datetime.now(UTC))
+    )
+
+
 def rotate(
     session: Session,
     *,

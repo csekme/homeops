@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { CreateHouseholdDialog } from '@/components/create-household-dialog';
+import { PendingInvitations } from '@/components/pending-invitations';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -42,22 +43,26 @@ export default function DashboardPage() {
   const role = active && active.role && isRole(active.role) ? active.role : undefined;
   const financialVisible = role ? isFinancialVisible(role) : false;
 
-  // No household yet → onboarding: a single, clear call to action.
+  // No household yet → onboarding: pending invites first (the common "just registered after
+  // being invited" case), then a clear call to action to create one's own household.
   if (user && memberships.length === 0) {
     return (
       <>
-        <Empty className="min-h-[60vh]">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <HousePlusIcon />
-            </EmptyMedia>
-            <EmptyTitle>{th('onboarding.title')}</EmptyTitle>
-            <EmptyDescription>{th('onboarding.description')}</EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <Button onClick={() => setCreateOpen(true)}>{th('onboarding.cta')}</Button>
-          </EmptyContent>
-        </Empty>
+        <div className="flex flex-col gap-6">
+          <PendingInvitations />
+          <Empty className="min-h-[50vh]">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <HousePlusIcon />
+              </EmptyMedia>
+              <EmptyTitle>{th('onboarding.title')}</EmptyTitle>
+              <EmptyDescription>{th('onboarding.description')}</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button onClick={() => setCreateOpen(true)}>{th('onboarding.cta')}</Button>
+            </EmptyContent>
+          </Empty>
+        </div>
         <CreateHouseholdDialog open={createOpen} onOpenChange={setCreateOpen} />
       </>
     );
@@ -65,6 +70,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PendingInvitations />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         {user ? (

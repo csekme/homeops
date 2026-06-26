@@ -1,8 +1,10 @@
-/** Invitation preview + accept (the `/invite/:token` landing). */
+/** Invitation preview + accept/decline (the `/invite/:token` landing). */
 import {
   getGetMeQueryKey,
   getListHouseholdsQueryKey,
+  getListMyInvitationsQueryKey,
   useAcceptInvitation,
+  useDeclineInvitation,
   usePreviewInvitation,
 } from '@homeops/api-client';
 import type { InvitationPreview } from '@homeops/types';
@@ -26,6 +28,13 @@ export function useAcceptInvite(token: string | undefined, redirectTo = '/') {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const accept = useAcceptInvitation();
+  const decline = useDeclineInvitation();
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getListHouseholdsQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getListMyInvitationsQueryKey() });
+  };
 
   const onAccept = () => {
     if (!token) return;
@@ -33,9 +42,23 @@ export function useAcceptInvite(token: string | undefined, redirectTo = '/') {
       { data: { token } },
       {
         onSuccess: () => {
-          void queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-          void queryClient.invalidateQueries({ queryKey: getListHouseholdsQueryKey() });
+          invalidate();
           navigate(redirectTo, { replace: true });
+        },
+      },
+    );
+  };
+
+  // Declining a token-bound invite. The user lands back on the dashboard; the now-declined
+  // invite drops out of "my invitations" on the next read.
+  const onDecline = () => {
+    if (!token) return;
+    decline.mutate(
+      { data: { token } },
+      {
+        onSuccess: () => {
+          invalidate();
+          navigate('/', { replace: true });
         },
       },
     );
@@ -43,8 +66,10 @@ export function useAcceptInvite(token: string | undefined, redirectTo = '/') {
 
   return {
     onAccept,
+    onDecline,
     isPending: accept.isPending,
-    isError: accept.isError,
-    errorKey: acceptErrorKey(accept.error),
+    isDeclining: decline.isPending,
+    isError: accept.isError || decline.isError,
+    errorKey: acceptErrorKey(accept.error ?? decline.error),
   };
 }

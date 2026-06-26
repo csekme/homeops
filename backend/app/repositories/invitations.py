@@ -53,6 +53,16 @@ def get_by_token_hash(session: Session, token_hash: str) -> Invitation | None:
     ).scalar_one_or_none()
 
 
+def get_full_by_id(session: Session, invitation_id: uuid.UUID | str) -> Invitation | None:
+    """Resolve an invitation by id, eager-loading household + role. Used by the no-tenant
+    accept-by-id / decline paths (dashboard "my invitations")."""
+    return session.execute(
+        select(Invitation)
+        .options(joinedload(Invitation.household), joinedload(Invitation.role))
+        .where(Invitation.id == uuid.UUID(str(invitation_id)))
+    ).scalar_one_or_none()
+
+
 def find_pending_for_email(
     session: Session, *, household_id: uuid.UUID | str, email: str
 ) -> Invitation | None:
@@ -62,8 +72,32 @@ def find_pending_for_email(
             Invitation.email == email.strip().lower(),
             Invitation.accepted_at.is_(None),
             Invitation.revoked_at.is_(None),
+            Invitation.declined_at.is_(None),
         )
     ).scalar_one_or_none()
+
+
+def list_pending_for_email(session: Session, email: str) -> list[Invitation]:
+    """Pending invitations addressed to ``email`` across all households (no-tenant mode).
+
+    Backs ``GET /api/invitations/mine`` so a freshly registered user sees the invites that
+    were waiting for them. Eager-loads household + role for display.
+    """
+    return list(
+        session.execute(
+            select(Invitation)
+            .options(joinedload(Invitation.household), joinedload(Invitation.role))
+            .where(
+                Invitation.email == email.strip().lower(),
+                Invitation.accepted_at.is_(None),
+                Invitation.revoked_at.is_(None),
+                Invitation.declined_at.is_(None),
+            )
+            .order_by(Invitation.created_at.desc())
+        )
+        .scalars()
+        .all()
+    )
 
 
 def list_pending(session: Session, household_id: uuid.UUID | str) -> list[Invitation]:
@@ -75,6 +109,7 @@ def list_pending(session: Session, household_id: uuid.UUID | str) -> list[Invita
                 Invitation.household_id == uuid.UUID(str(household_id)),
                 Invitation.accepted_at.is_(None),
                 Invitation.revoked_at.is_(None),
+                Invitation.declined_at.is_(None),
             )
             .order_by(Invitation.created_at.desc())
         )
@@ -91,6 +126,13 @@ def mark_accepted(session: Session, invitation: Invitation) -> Invitation:
 
 def revoke(session: Session, invitation: Invitation) -> Invitation:
     invitation.revoked_at = datetime.now(UTC)
+    session.flush()
+    return invitation
+
+
+def mark_declined(session: Session, invitation: Invitation) -> Invitation:
+    """Record an invitee rejecting the invitation (distinct from inviter revocation)."""
+    invitation.declined_at = datetime.now(UTC)
     session.flush()
     return invitation
 

@@ -28,8 +28,10 @@ import type {
   InvitationPreviewOut,
   InviteAcceptIn,
   InviteCreateIn,
+  InviteDeclineIn,
   MemberListOut,
   MemberOut1,
+  MyInvitationListOut,
   SwitchOut,
   ValidationError,
 } from "../../../../types/src/generated";
@@ -985,7 +987,7 @@ export const useSwitchHousehold = <
   return useMutation(mutationOptions);
 };
 /**
- * @summary Accept an invitation and switch into the household.
+ * @summary Accept an invitation (by token or id) and switch into the household.
  */
 export const acceptInvitation = (
   inviteAcceptIn: InviteAcceptIn,
@@ -1044,7 +1046,7 @@ export type AcceptInvitationMutationBody = InviteAcceptIn;
 export type AcceptInvitationMutationError = HTTPError | ValidationError;
 
 /**
- * @summary Accept an invitation and switch into the household.
+ * @summary Accept an invitation (by token or id) and switch into the household.
  */
 export const useAcceptInvitation = <
   TError = HTTPError | ValidationError,
@@ -1066,6 +1068,158 @@ export const useAcceptInvitation = <
 
   return useMutation(mutationOptions);
 };
+/**
+ * @summary Decline a pending invitation addressed to the caller.
+ */
+export const declineInvitation = (
+  inviteDeclineIn: InviteDeclineIn,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({
+    url: `/api/invitations/decline`,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    data: inviteDeclineIn,
+    signal,
+  });
+};
+
+export const getDeclineInvitationMutationOptions = <
+  TError = HTTPError | ValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declineInvitation>>,
+    TError,
+    { data: InviteDeclineIn },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof declineInvitation>>,
+  TError,
+  { data: InviteDeclineIn },
+  TContext
+> => {
+  const mutationKey = ["declineInvitation"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof declineInvitation>>,
+    { data: InviteDeclineIn }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return declineInvitation(data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeclineInvitationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof declineInvitation>>
+>;
+export type DeclineInvitationMutationBody = InviteDeclineIn;
+export type DeclineInvitationMutationError = HTTPError | ValidationError;
+
+/**
+ * @summary Decline a pending invitation addressed to the caller.
+ */
+export const useDeclineInvitation = <
+  TError = HTTPError | ValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declineInvitation>>,
+    TError,
+    { data: InviteDeclineIn },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof declineInvitation>>,
+  TError,
+  { data: InviteDeclineIn },
+  TContext
+> => {
+  const mutationOptions = getDeclineInvitationMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary List the pending invitations addressed to the authenticated user.
+ */
+export const listMyInvitations = (signal?: AbortSignal) => {
+  return customInstance<MyInvitationListOut>({
+    url: `/api/invitations/mine`,
+    method: "GET",
+    signal,
+  });
+};
+
+export const getListMyInvitationsQueryKey = () => {
+  return [`/api/invitations/mine`] as const;
+};
+
+export const getListMyInvitationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMyInvitations>>,
+  TError = HTTPError,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyInvitations>>,
+    TError,
+    TData
+  >;
+}) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMyInvitationsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listMyInvitations>>
+  > = ({ signal }) => listMyInvitations(signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMyInvitations>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMyInvitationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMyInvitations>>
+>;
+export type ListMyInvitationsQueryError = HTTPError;
+
+/**
+ * @summary List the pending invitations addressed to the authenticated user.
+ */
+
+export function useListMyInvitations<
+  TData = Awaited<ReturnType<typeof listMyInvitations>>,
+  TError = HTTPError,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMyInvitations>>,
+    TError,
+    TData
+  >;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMyInvitationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * @summary Preview a pending invitation (household + role).
  */

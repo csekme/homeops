@@ -24,6 +24,10 @@ class InvalidRefreshSession(AuthError):
     """Refresh token unknown/expired, or reuse detected (family revoked)."""
 
 
+class InvalidPasswordResetToken(AuthError):
+    """Password-reset token unknown, expired or already used."""
+
+
 class MfaRequired(AuthError):
     """Password verified, but the account has 2FA enabled — a TOTP challenge is needed.
 

@@ -30,6 +30,16 @@ class ActivateIn(Schema):
     token = String(required=True, validate=Length(min=1))
 
 
+class ForgotPasswordIn(Schema):
+    email = Email(required=True)
+    locale = String(load_default="hu", validate=Length(equal=2))
+
+
+class ResetPasswordIn(Schema):
+    token = String(required=True, validate=Length(min=1))
+    password = String(required=True, validate=Length(min=8, max=128))
+
+
 class LoginIn(Schema):
     email = Email(required=True)
     password = String(required=True, validate=Length(min=1, max=128))
@@ -182,4 +192,28 @@ class InvitationPreviewOut(Schema):
 
 
 class InviteAcceptIn(Schema):
-    token = String(required=True, validate=Length(min=1))
+    # Accept by the emailed token (invite-link page) OR by invitation id (dashboard "my
+    # invitations", where the raw token isn't available). Exactly one is expected; the
+    # controller rejects a request that supplies neither.
+    token = String(required=False, validate=Length(min=1))
+    invitation_id = String(required=False, validate=Length(min=1))
+
+
+class InviteDeclineIn(Schema):
+    # Decline by the emailed token (invite-link page) OR by invitation id (dashboard). Exactly
+    # one is expected; the controller rejects a request that supplies neither.
+    token = String(required=False, validate=Length(min=1))
+    invitation_id = String(required=False, validate=Length(min=1))
+
+
+class MyInvitationOut(Schema):
+    id = String()
+    household_name = String()
+    role = String()
+    email = String()
+    expires_at = String()
+    created_at = String()
+
+
+class MyInvitationListOut(Schema):
+    invitations = List(Nested(MyInvitationOut))

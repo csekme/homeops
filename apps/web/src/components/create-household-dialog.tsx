@@ -32,6 +32,12 @@ export function CreateHouseholdDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
+          <img
+            src="/res/household/create_household.svg"
+            alt=""
+            aria-hidden="true"
+            className="mx-auto"
+          />
           <DialogTitle>{t('create.title')}</DialogTitle>
           <DialogDescription>{t('create.description')}</DialogDescription>
         </DialogHeader>
