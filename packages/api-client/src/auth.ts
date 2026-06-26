@@ -16,8 +16,17 @@ import type {
 } from '@homeops/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { getApiConfig } from './config';
 import { apiFetch } from './http';
 import { clearAccessToken, setAccessToken } from './token-store';
+
+/**
+ * Persist a body-borne refresh token (bearer transport / mobile). No-op on web, where the
+ * refresh token is an HttpOnly cookie and never appears in the response body.
+ */
+export async function persistRefreshToken(token: string | undefined): Promise<void> {
+  if (token) await getApiConfig().refreshTokenStore?.save(token);
+}
 
 export async function login(body: LoginRequest): Promise<LoginResponse> {
   const result = await apiFetch<LoginResponse>('/auth/login', {
@@ -26,8 +35,11 @@ export async function login(body: LoginRequest): Promise<LoginResponse> {
     skipAuthRetry: true,
   });
   // 2FA case: no session yet — only a challenge token. The caller routes to the verify
-  // step; the access token is set later by `useTotpVerify`.
-  if (result.access_token) setAccessToken(result.access_token);
+  // step; the access (and refresh) token is set later by `useTotpVerify`.
+  if (result.access_token) {
+    setAccessToken(result.access_token);
+    await persistRefreshToken(result.refresh_token);
+  }
   return result;
 }
 
@@ -44,10 +56,19 @@ export function fetchMe(): Promise<User> {
 }
 
 export async function logout(): Promise<void> {
+  const store = getApiConfig().refreshTokenStore;
   try {
-    await apiFetch('/auth/logout', { method: 'POST', skipAuthRetry: true });
+    // Mobile presents the refresh token in the body (no cookie); web sends nothing and the
+    // server reads the cookie. Either way the family is revoked server-side.
+    const stored = (await store?.load()) ?? null;
+    await apiFetch('/auth/logout', {
+      method: 'POST',
+      body: stored ? { refresh_token: stored } : undefined,
+      skipAuthRetry: true,
+    });
   } finally {
     clearAccessToken();
+    await store?.clear();
   }
 }
 

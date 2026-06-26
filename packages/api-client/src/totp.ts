@@ -18,7 +18,7 @@ import type {
 } from '@homeops/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { meQueryKey } from './auth';
+import { meQueryKey, persistRefreshToken } from './auth';
 import { apiFetch } from './http';
 import { setAccessToken } from './token-store';
 
@@ -51,7 +51,10 @@ export async function totpVerify(body: TotpVerifyRequest): Promise<LoginResponse
     body,
     skipAuthRetry: true,
   });
-  if (result.access_token) setAccessToken(result.access_token);
+  if (result.access_token) {
+    setAccessToken(result.access_token);
+    await persistRefreshToken(result.refresh_token);
+  }
   return result;
 }
 

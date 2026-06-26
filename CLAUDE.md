@@ -1,43 +1,35 @@
-<!-- gitnexus:start -->
-# GitNexus — Code Intelligence
+# Project: Household Management SaaS
 
-This project is indexed by GitNexus as **homeops** (1503 symbols, 3017 relationships, 119 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+Payments, official documents, utility services, documents, and tasks in a clear, easy-to-use interface for family-based, multi-user use.
 
-> Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
+**One-sentence vision:** HomeOps is a shared household “operating system” that keeps track of all recurring obligations, deadlines, expenses, and documents related to a home in one clear interface, and sends timely reminders before anything slips through the cracks.
 
-## Always Do
+**Who it serves:** primarily families / households where multiple responsible people — parents, and possibly older children — share the administrative burden. Secondarily, smaller shared rental households and property managers.
 
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows. For regression review, compare against the default branch: `detect_changes({scope: "compare", base_ref: "main"})`.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `context({name: "symbolName"})`.
+## Core Concepts — Domain Glossary
 
-## Never Do
+Without a shared glossary, the entire plan can easily become ambiguous. I use the following terms consistently throughout.
 
-- NEVER edit a function, class, or method without first running `impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `rename` which understands the call graph.
-- NEVER commit changes without running `detect_changes()` to check affected scope.
+- **Household / Tenant:** the main isolation unit. All data belongs to a household. In the context of a multi-tenant SaaS, this is also the tenant.
 
-## Resources
+- **User:** a global personal account tied to an email address. A user can be a member of multiple households — for example, someone may belong to both their own household and their parents’ household.
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/homeops/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/homeops/clusters` | All functional areas |
-| `gitnexus://repo/homeops/processes` | All execution flows |
-| `gitnexus://repo/homeops/process/{name}` | Step-by-step execution trace |
+- **Membership:** the `User` ↔ `Household` relationship, which carries the role and permissions. **Important:** the role does not live on the user, but on the membership.
 
-## CLI
+- **Role:** a predefined permission package, such as `OWNER`, `ADMIN`, `MEMBER`, `VIEWER`, or `CHILD`. It is extensible.
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+- **Permission:** a fine-grained operation-level authorization, such as `expense.read`, `document.delete`, or `connector.manage`. 
+**A role is a set of permissions.**
 
-<!-- gitnexus:end -->
+## Architecture
+
+Database: PostgreSQL
+Backend: `/backend`: Python Flask /api
+Email: Mailplit
+Frontend:
+    - `/apps/web`: React with schadcn components
+    - `/apps/mobile`: React Native - gluestack ui v4
+    - `/packages`: shared code between web and mobile
+Reverse proxy based on nginx for developing cycle with self hosted cert.
+
+HomeOps — Developer Experience (dev setup) `/docs/devex.md` 

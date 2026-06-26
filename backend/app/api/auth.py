@@ -40,6 +40,16 @@ auth_bp = APIBlueprint("auth", __name__, url_prefix="/api/auth")
 REFRESH_COOKIE = "refresh_token"
 CSRF_COOKIE = "csrf_token"
 
+# Mobile clients can't hold an HttpOnly refresh cookie, so they opt into a bearer/body
+# token transport with this header (plan §3, phase0-mobile). When present the refresh token
+# travels in the JSON body instead of a Set-Cookie, and CSRF is skipped (no ambient cookie
+# auth to forge). Absent → the unchanged web cookie+CSRF path. Web never sends it.
+AUTH_TRANSPORT_HEADER = "X-Auth-Transport"
+
+
+def _wants_bearer_transport() -> bool:
+    return request.headers.get(AUTH_TRANSPORT_HEADER, "").strip().lower() == "bearer"
+
 
 def _attach_session_cookies(refresh_token: str, csrf_token: str) -> None:
     cfg = current_app.config
@@ -77,12 +87,13 @@ def _attach_session_cookies(refresh_token: str, csrf_token: str) -> None:
 
 
 def issue_session_response(issued: auth_service.IssuedSession) -> dict[str, object]:
-    """Attach the refresh/CSRF cookies and build the access-token + user body.
+    """Build the access-token + user body and deliver the refresh/CSRF tokens.
 
     Shared by ``/login`` and ``/totp/verify`` so both emit an identical session payload.
+    Web (default): refresh + CSRF go out as cookies. Mobile (``X-Auth-Transport: bearer``):
+    no Set-Cookie — the refresh token rides in the body for expo-secure-store.
     """
-    _attach_session_cookies(issued.refresh_token, issued.csrf_token)
-    return {
+    body: dict[str, object] = {
         "access_token": issued.access_token,
         "token_type": "Bearer",  # nosec B105 — OAuth token type, not a secret
         "user": {
@@ -93,6 +104,11 @@ def issue_session_response(issued: auth_service.IssuedSession) -> dict[str, obje
             "memberships": [],
         },
     }
+    if _wants_bearer_transport():
+        body["refresh_token"] = issued.refresh_token
+    else:
+        _attach_session_cookies(issued.refresh_token, issued.csrf_token)
+    return body
 
 
 def _clear_session_cookies() -> None:
@@ -177,12 +193,23 @@ def login(json_data: dict) -> dict[str, object]:
 )
 @limiter.limit("60 per minute")
 def refresh() -> dict[str, str]:
-    if not verify_csrf(request.cookies.get(CSRF_COOKIE), request.headers.get(CSRF_HEADER)):
-        abort(403, "Missing or invalid CSRF token.")
+    # Bearer transport: the token comes in the body and CSRF is skipped (no cookie to forge).
+    # The header is the trigger, but a body token alone also selects this path so a mobile
+    # client works even if a proxy strips the header. Web sends neither → cookie+CSRF path.
+    body = request.get_json(silent=True) or {}
+    body_refresh = body.get("refresh_token")
+    bearer = _wants_bearer_transport() or bool(body_refresh)
 
-    raw_refresh = request.cookies.get(REFRESH_COOKIE)
-    if not raw_refresh:
-        abort(401, "Missing refresh token.")
+    if bearer:
+        raw_refresh = body_refresh
+        if not raw_refresh:
+            abort(401, "Missing refresh token.")
+    else:
+        if not verify_csrf(request.cookies.get(CSRF_COOKIE), request.headers.get(CSRF_HEADER)):
+            abort(403, "Missing or invalid CSRF token.")
+        raw_refresh = request.cookies.get(REFRESH_COOKIE)
+        if not raw_refresh:
+            abort(401, "Missing refresh token.")
 
     try:
         rotated = auth_service.refresh(
@@ -191,8 +218,16 @@ def refresh() -> dict[str, str]:
             user_agent=request.headers.get("User-Agent"),
         )
     except InvalidRefreshSession:
-        _clear_session_cookies()
+        if not bearer:
+            _clear_session_cookies()
         abort(401, "Invalid refresh session.")
+
+    if bearer:
+        return {  # nosec B105
+            "access_token": rotated.access_token,
+            "token_type": "Bearer",
+            "refresh_token": rotated.refresh_token,
+        }
 
     _attach_session_cookies(rotated.refresh_token, rotated.csrf_token)
     return {"access_token": rotated.access_token, "token_type": "Bearer"}  # nosec B105
@@ -204,7 +239,11 @@ def refresh() -> dict[str, str]:
     summary="Revoke the refresh family and clear cookies.", operation_id="logout", tags=["Auth"]
 )
 def logout() -> tuple[str, int]:
-    auth_service.logout(raw_refresh=request.cookies.get(REFRESH_COOKIE))
+    # Mobile presents the refresh token in the body; web carries it in the cookie. Clearing
+    # cookies is harmless for mobile (there are none) so we keep one exit path.
+    body = request.get_json(silent=True) or {}
+    raw_refresh = body.get("refresh_token") or request.cookies.get(REFRESH_COOKIE)
+    auth_service.logout(raw_refresh=raw_refresh)
     _clear_session_cookies()
     return "", 204
 

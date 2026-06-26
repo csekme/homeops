@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "HomeOps",
+    "slug": "homeops",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "scheme": "homeops",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.homeops.app"
+    },
+    "android": {
+      "edgeToEdgeEnabled": true,
+      "package": "com.homeops.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#ffffff",
+          "resizeMode": "contain"
+        }
+      ]
+    ]
+  }
+}

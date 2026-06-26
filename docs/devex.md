@@ -1,15 +1,19 @@
 # HomeOps — Developer Experience (dev setup)
 
 Single-origin HTTPS dev stack (spec §5.7): everything runs behind
-`https://homeops.localhost`. Postgres + Mailpit + nginx run in Docker; the **frontend**
+`https://homeops.localhost`. Postgres + Mailpit + nginx run in Docker; the **web frontend**
 (Vite `:5173`) and **backend** (Flask `:8080`) run on the host for fast HMR and native
-debugging. nginx terminates TLS and routes `/api/` → backend, `/` → frontend.
+debugging. nginx terminates TLS and routes `/api/` → backend, `/` → frontend. The
+**mobile app** (`apps/mobile`, Expo) runs via Metro and talks to the same backend over the
+LAN (see [Mobile (Expo)](#mobile-expo)).
 
 ## Prerequisites
 - Docker + Docker Compose
 - Node ≥ 22 and **pnpm** 10 (`corepack enable`)
 - **uv** (Python toolchain) — provisions Python 3.12 automatically
 - **mkcert** (locally-trusted TLS certs)
+- _Mobile only:_ the **Expo Go** app on a phone, or an **iOS Simulator** (Xcode) /
+  **Android emulator** (Android Studio)
 
 ## One-time setup (per machine)
 
@@ -38,7 +42,7 @@ migration, creates the **non-privileged `homeops_app`** login role (NOSUPERUSER,
 NOBYPASSRLS) that the app connects with — so PostgreSQL RLS is actually enforced
 (spec §7.2). It also enables RLS + seeds the role catalogue.
 
-## Daily loop
+## Daily loop (web)
 
 ```bash
 docker compose up -d                          # db + mailpit + nginx
@@ -60,11 +64,50 @@ proxy, real `Secure`/`HttpOnly`/`SameSite` cookies (same-origin, no CORS).
 
 > Interactive API docs are dev-only — disabled in production (`ENABLE_API_DOCS=false`).
 
+## Mobile (Expo)
+
+The mobile app (`apps/mobile`) is a separate client that reuses the shared packages
+(`@homeops/api-client`, `@homeops/validation`, `@homeops/i18n`, …). It does **not** go
+through the nginx proxy at `homeops.localhost` — a phone/emulator can't resolve that name,
+nor does it trust the mkcert root CA — so in dev it talks **plain HTTP straight to the Flask
+backend**, using the backend's **bearer token transport** (refresh token in the body +
+`expo-secure-store`, no cookies/CSRF; React Native isn't subject to CORS). Details:
+[`apps/mobile/README.md`](../apps/mobile/README.md).
+
+```bash
+# 1) Run the backend bound to the LAN (the default 127.0.0.1 isn't reachable from a device):
+(cd backend && uv run flask --app app run -p 8080 --host 0.0.0.0)
+
+# 2) Point the app at it (in apps/mobile/.env so it survives restarts), then start Metro.
+#    -c clears the cache: EXPO_PUBLIC_* vars are inlined at bundle time.
+echo "EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:8080/api" > apps/mobile/.env
+pnpm --filter @homeops/mobile start -c
+#   press i  → iOS Simulator (can also use http://localhost:8080/api)
+#   press a  → Android emulator (use http://10.0.2.2:8080/api)
+#   or scan the QR with Expo Go on a physical device (use the machine's LAN IP)
+```
+
+- Find your LAN IP with `ipconfig getifaddr en0`. It changes with DHCP — if login starts
+  failing after a network change, re-check it and update `.env` (then restart with `-c`).
+- **`EXPO_PUBLIC_API_URL`** must be an absolute URL the device can reach. `EXPO_PUBLIC_*`
+  vars are baked into the bundle, so editing `.env` requires restarting the dev server.
+- **Production parity (HTTPS):** to test against the nginx TLS path instead, regenerate the
+  cert with the current IP — `cd certs && mkcert -cert-file homeops.localhost.pem
+  -key-file homeops.localhost-key.pem homeops.localhost <your-LAN-IP>` — restart nginx, and
+  install `$(mkcert -CAROOT)/rootCA.pem` as a trusted CA on the device (iOS: install profile
+  → Certificate Trust Settings; Android needs a user-CA network-security exception). Then
+  use `https://<your-LAN-IP>/api`.
+- **Activation deep link:** open the Mailpit link as `homeops://activate/<token>`.
+
 ## Quality gates (run before pushing — mirrors CI)
 
 ```bash
-# Frontend
+# Frontend (web)
 pnpm turbo run lint typecheck test build
+
+# Mobile (Expo) — type-check + a full Metro bundle catches resolution/config breakage
+pnpm --filter @homeops/mobile typecheck
+pnpm --filter @homeops/mobile exec expo export --platform ios --output-dir /tmp/homeops-mobile-bundle
 
 # Backend
 cd backend

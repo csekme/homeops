@@ -1,0 +1,40 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@homeops/core": [
+        "../../packages/core/src/index.ts"
+      ],
+      "@homeops/validation": [
+        "../../packages/validation/src/index.ts"
+      ],
+      "@homeops/i18n": [
+        "../../packages/i18n/src/index.ts"
+      ],
+      "@homeops/tokens": [
+        "../../packages/tokens/src/index.ts"
+      ],
+      "@homeops/types": [
+        "../../packages/types/src/index.ts"
+      ],
+      "@homeops/api-client": [
+        "../../packages/api-client/src/index.ts"
+      ],
+      "tailwind.config": [
+        "./tailwind.config.js"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

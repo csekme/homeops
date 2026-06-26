@@ -53,11 +53,16 @@ class LoginOut(Schema):
     user = Nested(UserOut)
     mfa_required = Boolean()
     challenge_token = String()
+    # Mobile (bearer transport) only: the refresh token travels in the body instead of an
+    # HttpOnly cookie, for storage in expo-secure-store. Omitted on the web (cookie) path.
+    refresh_token = String()
 
 
 class RefreshOut(Schema):
     access_token = String()
     token_type = String()
+    # Mobile (bearer transport) only — see LoginOut.refresh_token. Omitted on the web path.
+    refresh_token = String()
 
 
 # ── Two-factor authentication (TOTP) ────────────────────────────────────────────────

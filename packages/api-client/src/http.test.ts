@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { apiFetch, ApiRequestError, configureApiClient } from './http';
+import { configureApiClient, type RefreshTokenStore } from './config';
+import { apiFetch, ApiRequestError, refreshAccessToken } from './http';
 import {
   clearAccessToken,
   getAccessToken,
@@ -67,7 +68,15 @@ function installFetch(opts: {
 /* ------------------------------------------------------------------- setup */
 
 beforeEach(() => {
-  configureApiClient({ baseUrl: '/api' });
+  // Reset to the full web defaults — config is module state shared across tests, so a
+  // bearer-transport test must not leak into the next cookie-transport one.
+  configureApiClient({
+    baseUrl: '/api',
+    includeCredentials: true,
+    authTransport: 'cookie',
+    readCsrfToken: () => 'csrf123',
+    refreshTokenStore: null,
+  });
   clearAccessToken();
   setOnSessionExpired(null);
   vi.stubGlobal('document', { cookie: 'csrf_token=csrf123' });
@@ -196,5 +205,121 @@ describe('apiFetch — failed refresh fires the session-expired handler', () => 
 
     await expect(apiFetch('/auth/me')).rejects.toBeInstanceOf(ApiRequestError);
     expect(onExpired).toHaveBeenCalledWith({ wasAuthenticated: false });
+  });
+});
+
+/* ------------------------------------------------- mobile (bearer transport) */
+
+describe('bearer transport (mobile)', () => {
+  /** A fake secure-store that records save/clear and serves a seeded refresh token. */
+  function fakeStore(initial: string | null = null) {
+    let value = initial;
+    const store: RefreshTokenStore = {
+      load: () => value,
+      save: vi.fn((t: string) => {
+        value = t;
+      }),
+      clear: vi.fn(() => {
+        value = null;
+      }),
+    };
+    return { store, get: () => value };
+  }
+
+  /** Records request bodies/headers; refresh returns a rotated token. */
+  function installBearerFetch(opts: { refreshStatus?: number; rotated?: string } = {}) {
+    const calls: Array<{ url: string; headers: Record<string, string>; body?: unknown }> = [];
+    const fetchMock = vi.fn(
+      async (url: string, init?: { headers?: Record<string, string>; body?: string }) => {
+        calls.push({
+          url,
+          headers: init?.headers ?? {},
+          body: init?.body ? JSON.parse(init.body) : undefined,
+        });
+        if (url.endsWith('/auth/refresh')) {
+          const status = opts.refreshStatus ?? 200;
+          if (status !== 200) return res(status, { error: { message: 'no' } });
+          return res(200, {
+            access_token: makeJwt(900),
+            token_type: 'Bearer',
+            refresh_token: opts.rotated ?? 'rt-rotated',
+          });
+        }
+        return res(200, { ok: true });
+      },
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    return { calls };
+  }
+
+  it('apiFetch flags every request with X-Auth-Transport and omits credentials', async () => {
+    const mock = installBearerFetch();
+    const { store } = fakeStore('rt-1');
+    configureApiClient({
+      baseUrl: 'https://api.test/api',
+      includeCredentials: false,
+      authTransport: 'bearer',
+      readCsrfToken: () => null,
+      refreshTokenStore: store,
+    });
+    setAccessToken(makeJwt(900));
+
+    await apiFetch('/auth/me');
+
+    expect(mock.calls[0]?.url).toBe('https://api.test/api/auth/me');
+    expect(mock.calls[0]?.headers['X-Auth-Transport']).toBe('bearer');
+  });
+
+  it('refresh sends the stored token in the body (no CSRF) and persists the rotated one', async () => {
+    const mock = installBearerFetch({ rotated: 'rt-2' });
+    const fs = fakeStore('rt-1');
+    configureApiClient({
+      baseUrl: '/api',
+      includeCredentials: false,
+      authTransport: 'bearer',
+      readCsrfToken: () => null,
+      refreshTokenStore: fs.store,
+    });
+
+    const token = await refreshAccessToken();
+
+    expect(token).toBeTruthy();
+    const refreshCall = mock.calls.find((c) => c.url.endsWith('/auth/refresh'));
+    expect(refreshCall?.body).toEqual({ refresh_token: 'rt-1' });
+    expect(refreshCall?.headers['X-Auth-Transport']).toBe('bearer');
+    expect(refreshCall?.headers['X-CSRF-Token']).toBeUndefined();
+    expect(fs.store.save).toHaveBeenCalledWith('rt-2');
+    expect(fs.get()).toBe('rt-2');
+  });
+
+  it('with no stored token, refresh fails fast without a round-trip', async () => {
+    const mock = installBearerFetch();
+    const fs = fakeStore(null);
+    configureApiClient({
+      baseUrl: '/api',
+      includeCredentials: false,
+      authTransport: 'bearer',
+      readCsrfToken: () => null,
+      refreshTokenStore: fs.store,
+    });
+
+    expect(await refreshAccessToken()).toBeNull();
+    expect(mock.calls).toHaveLength(0);
+  });
+
+  it('a failed refresh clears the secure store', async () => {
+    installBearerFetch({ refreshStatus: 401 });
+    const fs = fakeStore('rt-1');
+    configureApiClient({
+      baseUrl: '/api',
+      includeCredentials: false,
+      authTransport: 'bearer',
+      readCsrfToken: () => null,
+      refreshTokenStore: fs.store,
+    });
+
+    expect(await refreshAccessToken()).toBeNull();
+    expect(fs.store.clear).toHaveBeenCalled();
+    expect(fs.get()).toBeNull();
   });
 });

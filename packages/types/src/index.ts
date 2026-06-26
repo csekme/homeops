@@ -47,6 +47,8 @@ export interface LoginResponse {
   mfa_required?: boolean;
   /** Short-lived token to echo back to `/auth/totp/verify` when `mfa_required`. */
   challenge_token?: string;
+  /** Mobile (bearer transport) only: refresh token for secure storage (no cookie). */
+  refresh_token?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -89,6 +91,8 @@ export interface RecoveryRegenerateRequest {
 export interface RefreshResponse {
   access_token: string;
   token_type: string;
+  /** Mobile (bearer transport) only: the rotated refresh token (no cookie). */
+  refresh_token?: string;
 }
 
 export interface MessageResponse {

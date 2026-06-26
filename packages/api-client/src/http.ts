@@ -1,7 +1,11 @@
 /**
- * Fetch mutator (plan §3.11/§3.12): `/api` base, `credentials: 'include'` (so the
- * browser carries the HttpOnly refresh cookie), `Authorization: Bearer <memory token>`,
- * and single-flight refresh on 401 → retry once.
+ * Fetch mutator (plan §3.11/§3.12, phase0-mobile §4): base URL + transport behaviour come
+ * from `config.ts` so the same `apiFetch` serves web (cookie transport) and mobile (bearer
+ * transport). It always carries `Authorization: Bearer <memory token>` and single-flights a
+ * refresh on 401 → retry once.
+ *
+ * Web: `credentials: 'include'` (HttpOnly refresh cookie) + CSRF header. Mobile: the
+ * `X-Auth-Transport: bearer` header, no credentials/CSRF, refresh token via the body store.
  *
  * This is the seam orval's generated client will plug into; the token store and refresh
  * logic stay put when the typed hooks replace the hand-written ones.
@@ -9,6 +13,7 @@
 
 import type { ApiError, RefreshResponse } from '@homeops/types';
 
+import { AUTH_TRANSPORT_HEADER, getApiConfig } from './config';
 import {
   clearAccessToken,
   getAccessToken,
@@ -16,12 +21,6 @@ import {
   notifySessionExpired,
   setAccessToken,
 } from './token-store';
-
-let apiBaseUrl = '/api';
-
-export function configureApiClient(options: { baseUrl?: string }): void {
-  if (options.baseUrl) apiBaseUrl = options.baseUrl;
-}
 
 export class ApiRequestError extends Error {
   constructor(
@@ -32,17 +31,6 @@ export class ApiRequestError extends Error {
     super(message);
     this.name = 'ApiRequestError';
   }
-}
-
-function readCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null;
-  for (const part of document.cookie.split('; ')) {
-    const eq = part.indexOf('=');
-    if (eq > -1 && part.slice(0, eq) === name) {
-      return decodeURIComponent(part.slice(eq + 1));
-    }
-  }
-  return null;
 }
 
 async function parse<T>(response: Response): Promise<T> {
@@ -65,22 +53,48 @@ let refreshInFlight: Promise<string | null> | null = null;
 export function refreshAccessToken(): Promise<string | null> {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
+    const cfg = getApiConfig();
+    const bearer = cfg.authTransport === 'bearer';
     try {
-      const csrf = readCookie('csrf_token');
-      const response = await fetch(`${apiBaseUrl}/auth/refresh`, {
+      const headers: Record<string, string> = {};
+      let body: string | undefined;
+
+      if (bearer) {
+        // Mobile: the refresh token is our credential — pull it from the secure store and
+        // present it in the body. Nothing to refresh with ⇒ treat as a dead session.
+        const stored = (await cfg.refreshTokenStore?.load()) ?? null;
+        if (!stored) {
+          clearAccessToken();
+          return null;
+        }
+        headers[AUTH_TRANSPORT_HEADER] = 'bearer';
+        headers['Content-Type'] = 'application/json';
+        body = JSON.stringify({ refresh_token: stored });
+      } else {
+        // Web: the HttpOnly cookie travels automatically; echo the double-submit CSRF token.
+        const csrf = cfg.readCsrfToken();
+        if (csrf) headers['X-CSRF-Token'] = csrf;
+      }
+
+      const response = await fetch(`${cfg.baseUrl}/auth/refresh`, {
         method: 'POST',
-        credentials: 'include',
-        headers: csrf ? { 'X-CSRF-Token': csrf } : {},
+        ...(cfg.includeCredentials ? { credentials: 'include' as const } : {}),
+        headers,
+        body,
       });
       if (!response.ok) {
         clearAccessToken();
+        if (bearer) await cfg.refreshTokenStore?.clear();
         return null;
       }
       const data = (await response.json()) as RefreshResponse;
       setAccessToken(data.access_token);
+      // Rotation: persist the new refresh token (bearer only; web rotates the cookie).
+      if (bearer && data.refresh_token) await cfg.refreshTokenStore?.save(data.refresh_token);
       return data.access_token;
     } catch {
       clearAccessToken();
+      if (bearer) await cfg.refreshTokenStore?.clear();
       return null;
     } finally {
       refreshInFlight = null;
@@ -97,14 +111,17 @@ interface RequestOptions {
 }
 
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const cfg = getApiConfig();
   const send = async (): Promise<Response> => {
     const headers: Record<string, string> = {};
     const token = getAccessToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
     if (options.body !== undefined) headers['Content-Type'] = 'application/json';
-    return fetch(`${apiBaseUrl}${path}`, {
+    // Bearer transport: flag every request so the auth endpoints answer in body-token mode.
+    if (cfg.authTransport === 'bearer') headers[AUTH_TRANSPORT_HEADER] = 'bearer';
+    return fetch(`${cfg.baseUrl}${path}`, {
       method: options.method ?? 'GET',
-      credentials: 'include',
+      ...(cfg.includeCredentials ? { credentials: 'include' as const } : {}),
       headers,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     });
