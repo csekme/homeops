@@ -99,6 +99,53 @@ pnpm --filter @homeops/mobile start -c
   use `https://<your-LAN-IP>/api`.
 - **Activation deep link:** open the Mailpit link as `homeops://activate/<token>`.
 
+## Poking at the database (the RLS gotcha)
+
+Tenant tables (`households`, `memberships`, `invitations`, and future content tables) have
+**`FORCE ROW LEVEL SECURITY`**. The policy is:
+
+```sql
+current_setting('app.bypass_tenant', true) = 'on'
+OR <discriminator> = NULLIF(current_setting('app.current_household', true), '')::uuid
+```
+
+So if you connect as the **app role `homeops_app`** and just run `SELECT * FROM households`,
+you get **zero rows** — not because the table is empty, but because neither GUC is set, so
+the policy filters *everything*. This trips people up after archiving: a soft delete only
+sets `deleted_at` (the row is still there), and even live rows are hidden without the GUCs.
+
+Two ways to look around:
+
+```bash
+# A) As the dev SUPERUSER (POSTGRES_USER=homeops). Superusers bypass RLS — even FORCE —
+#    so you see every row, including soft-deleted ones. Easiest for spelunking.
+docker compose exec db psql -U homeops -d homeops -c \
+  "SELECT id, name, deleted_at FROM households;"
+
+# B) As the app role homeops_app (how the backend connects). RLS is enforced, so opt out
+#    explicitly for the query — mirrors the backend's no-tenant mode (session_scope bypass).
+docker compose exec db psql -U homeops_app -d homeops <<'SQL'
+SET app.bypass_tenant = 'on';
+SELECT id, name, deleted_at FROM households;
+SELECT * FROM memberships;
+SQL
+```
+
+Scope to a single tenant instead of full bypass (what a request actually does):
+
+```sql
+SET app.current_household = '<household-uuid>';   -- only that household's rows appear
+SELECT * FROM memberships;                          -- (still hides other tenants)
+```
+
+Notes:
+- `deleted_at IS NOT NULL` = **archived** (soft delete). RLS does **not** filter on it; the
+  app layer (`households_repo` / `users_repo.list_memberships`) is what hides archived rows
+  from `/me`, the household list, and active-household selection.
+- `SET` lasts for the connection; inside a transaction use `SET LOCAL`.
+- `homeops_app` is `NOSUPERUSER NOBYPASSRLS` on purpose — that's what makes the RLS tests
+  meaningful. Don't grant it BYPASSRLS to "fix" a query; set the GUC instead.
+
 ## Quality gates (run before pushing — mirrors CI)
 
 ```bash

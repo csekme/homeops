@@ -49,3 +49,42 @@ class InvalidTotpCode(AuthError):
 
 class TotpReuse(AuthError):
     """A TOTP code for an already-consumed time-step was replayed (replay protection)."""
+
+
+# ── Household / membership / invitation errors (feature plan §Backend) ────────────────
+
+
+class HouseholdError(Exception):
+    """Base for household-management failures."""
+
+
+class HouseholdNotFound(HouseholdError):
+    """The household does not exist or has been soft-deleted (→ 404)."""
+
+
+class NotAMember(HouseholdError):
+    """The caller has no membership in the target household (→ 404, no existence leak)."""
+
+
+class PermissionDenied(HouseholdError):
+    """The caller's role lacks the permission required for the operation (→ 403)."""
+
+
+class LastOwnerError(HouseholdError):
+    """The operation would leave the household with no OWNER (→ 409)."""
+
+
+class AlreadyMember(HouseholdError):
+    """The target user is already a member of the household (→ 409)."""
+
+
+class PendingInviteExists(HouseholdError):
+    """A live (unaccepted, unrevoked) invitation already exists for this email (→ 409)."""
+
+
+class InvalidInvitation(HouseholdError):
+    """The invitation is unknown, expired, already accepted, or revoked (→ 400)."""
+
+
+class InvitationEmailMismatch(HouseholdError):
+    """The accepting user's email does not match the invited address (→ 403)."""

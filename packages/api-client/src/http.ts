@@ -88,6 +88,11 @@ export function refreshAccessToken(): Promise<string | null> {
         return null;
       }
       const data = (await response.json()) as RefreshResponse;
+      if (!data.access_token) {
+        clearAccessToken();
+        if (bearer) await cfg.refreshTokenStore?.clear();
+        return null;
+      }
       setAccessToken(data.access_token);
       // Rotation: persist the new refresh token (bearer only; web rotates the cookie).
       if (bearer && data.refresh_token) await cfg.refreshTokenStore?.save(data.refresh_token);

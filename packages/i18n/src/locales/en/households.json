@@ -1,0 +1,104 @@
+{
+  "switcher": {
+    "label": "Households",
+    "active": "Active",
+    "manage": "Manage household",
+    "create": "Create household",
+    "none": "No household yet"
+  },
+  "create": {
+    "title": "Create a household",
+    "description": "Set up a shared household. You'll become its owner.",
+    "nameLabel": "Household name",
+    "namePlaceholder": "e.g. The Smith Family",
+    "currencyLabel": "Default currency",
+    "submit": "Create household",
+    "success": "Household created."
+  },
+  "onboarding": {
+    "title": "Welcome to HomeOps",
+    "description": "Create your first household to start tracking obligations, expenses and documents together.",
+    "cta": "Create household"
+  },
+  "settings": {
+    "title": "Household",
+    "description": "Manage your household, members and invitations.",
+    "tabs": {
+      "general": "General",
+      "members": "Members",
+      "invitations": "Invitations"
+    }
+  },
+  "general": {
+    "nameLabel": "Household name",
+    "cancel": "Cancel",
+    "rename": "Rename",
+    "renamed": "Household renamed.",
+    "dangerZone": "Danger zone",
+    "archiveTitle": "Archive household",
+    "archiveDescription": "Archiving hides this household for everyone. This cannot be easily undone.",
+    "archive": "Archive household",
+    "archiveConfirmTitle": "Archive this household?",
+    "archiveConfirmDescription": "All members will lose access. Type to confirm.",
+    "archived": "Household archived."
+  },
+  "members": {
+    "title": "Members",
+    "you": "You",
+    "roleLabel": "Role",
+    "changeRole": "Change role",
+    "roleChanged": "Role updated.",
+    "remove": "Remove",
+    "removed": "Member removed.",
+    "leave": "Leave household",
+    "left": "You left the household.",
+    "removeConfirmTitle": "Remove this member?",
+    "removeConfirmDescription": "They will lose access to this household.",
+    "leaveConfirmTitle": "Leave this household?",
+    "leaveConfirmDescription": "You will lose access to this household."
+  },
+  "invitations": {
+    "title": "Invitations",
+    "pending": "Pending invitations",
+    "none": "No pending invitations.",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "name@example.com",
+    "roleLabel": "Role",
+    "send": "Send invitation",
+    "sent": "Invitation sent.",
+    "resend": "Resend",
+    "resent": "Invitation re-sent.",
+    "revoke": "Revoke",
+    "revoked": "Invitation revoked.",
+    "expires": "Expires {{date}}"
+  },
+  "accept": {
+    "title": "Join household",
+    "previewTitle": "You've been invited",
+    "previewDescription": "You've been invited to join {{household}} as {{role}}.",
+    "accept": "Accept invitation",
+    "accepted": "You joined {{household}}.",
+    "signInPrompt": "Sign in or register with {{email}} to accept this invitation.",
+    "register": "Register",
+    "login": "Sign in",
+    "wrongAccount": "This invitation was sent to {{email}}. Sign in with that address to accept."
+  },
+  "roles": {
+    "OWNER": "Owner",
+    "ADMIN": "Admin",
+    "MEMBER": "Member",
+    "VIEWER": "Viewer",
+    "CHILD": "Child"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "forbidden": "You don't have permission to do that.",
+    "notFound": "Household not found.",
+    "conflict": "That action isn't allowed right now (e.g. the last owner, or an existing member/invite).",
+    "lastOwner": "You can't remove or demote the last owner.",
+    "alreadyMember": "That person is already a member.",
+    "pendingInvite": "There's already a pending invitation for that email.",
+    "invalidInvite": "This invitation is invalid or has expired.",
+    "emailMismatch": "This invitation was issued to a different email address."
+  }
+}

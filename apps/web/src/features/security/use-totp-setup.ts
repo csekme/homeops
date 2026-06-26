@@ -4,7 +4,7 @@
  *
  * All API/logic lives here so the Security tab component stays presentational.
  */
-import { totpStatusQueryKey, useTotpConfirm, useTotpSetup } from '@homeops/api-client';
+import { getTotpStatusQueryKey, useTotpConfirm, useTotpSetup } from '@homeops/api-client';
 import { totpConfirmSchema, type TotpConfirmInput } from '@homeops/validation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
@@ -55,12 +55,12 @@ export function useTotpEnrollment(): UseTotpEnrollment {
     confirm.reset();
     // Refresh the card's enabled/remaining state now that the wizard is closing — this is
     // where we pick up a just-completed enrolment (see useTotpConfirm's note).
-    void queryClient.invalidateQueries({ queryKey: totpStatusQueryKey });
+    void queryClient.invalidateQueries({ queryKey: getTotpStatusQueryKey() });
   }, [setup, confirm, form, queryClient]);
 
   const onConfirm = form.handleSubmit((values) => {
     confirm.mutate(
-      { code: values.code },
+      { data: { code: values.code } },
       { onSuccess: (data) => setRecoveryCodes(data.codes) },
     );
   });

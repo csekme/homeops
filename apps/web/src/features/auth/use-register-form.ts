@@ -25,7 +25,7 @@ export function useRegisterForm(): UseRegisterForm {
   });
 
   const onSubmit = form.handleSubmit((values) => {
-    register.mutate(toRegisterRequest(values, i18n.resolvedLanguage ?? i18n.language));
+    register.mutate({ data: toRegisterRequest(values, i18n.resolvedLanguage ?? i18n.language) });
   });
 
   return {

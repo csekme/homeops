@@ -1,4 +1,4 @@
-import { useMe } from '@homeops/api-client';
+import { getGetMeQueryKey, useGetMe } from '@homeops/api-client';
 import { Redirect, Stack } from 'expo-router';
 
 import { useAuthBoot } from '@/lib/auth';
@@ -9,7 +9,7 @@ import { useAuthBoot } from '@/lib/auth';
  */
 export default function AuthLayout() {
   const { booted } = useAuthBoot();
-  const { data: user } = useMe({ enabled: booted });
+  const { data: user } = useGetMe({ query: { enabled: booted, queryKey: getGetMeQueryKey() } });
 
   if (booted && user) {
     return <Redirect href="/" />;

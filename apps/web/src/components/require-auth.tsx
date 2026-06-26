@@ -1,4 +1,4 @@
-import { useMe } from '@homeops/api-client';
+import { useGetMe } from '@homeops/api-client';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import { Splash } from '@/components/splash';
@@ -11,7 +11,7 @@ import { useAuthBoot } from '@/lib/auth';
 export function RequireAuth() {
   const { booted } = useAuthBoot();
   const location = useLocation();
-  const { data: user, isLoading, isError } = useMe({ enabled: booted });
+  const { data: user, isLoading, isError } = useGetMe({ query: { enabled: booted } });
 
   if (!booted || (isLoading && !user)) {
     return <Splash />;

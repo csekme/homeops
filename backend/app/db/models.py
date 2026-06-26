@@ -21,6 +21,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -131,6 +132,13 @@ class RefreshToken(UUIDPrimaryKeyMixin, Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    # Active household carried by this session, so a token refresh re-mints the access token
+    # into the *same* household the user switched to — never silently snapping back to their
+    # first membership (household_service.switch / household_service.create set this). NULL
+    # for users with no active household yet; user-scoped table, not subject to RLS.
+    household_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("households.id", ondelete="SET NULL"), nullable=True
+    )
     family_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     prev_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
@@ -169,6 +177,52 @@ class ActivationToken(UUIDPrimaryKeyMixin, Base):
     )
 
     __table_args__ = (Index("ix_activation_tokens_user_id", "user_id"),)
+
+
+class Invitation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Email-bound, single-use, expiring household invitation (feature plan §Backend).
+
+    Tenant-scoped (``household_id`` discriminator) → RLS applies, so create/list/revoke run
+    in the inviter's household context. **Acceptance is the exception**: the invitee is not
+    yet a member, so ``invitation_service.accept`` runs in no-tenant mode and the
+    email-binding check (accepting user's email == ``email``) is the compensating control
+    that replaces RLS for that one flow. Modeled on ``ActivationToken`` (hash-only storage).
+    """
+
+    __tablename__ = "invitations"
+
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("households.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("roles.id", ondelete="RESTRICT"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    invited_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    household: Mapped[Household] = relationship()
+    role: Mapped[Role] = relationship()
+
+    __table_args__ = (
+        # One live (pending) invite per (household, email); accepted/revoked rows don't count
+        # so a re-invite after revoke/accept is allowed. Mirrors the migration's partial index.
+        Index(
+            "uq_invitations_pending_email",
+            "household_id",
+            "email",
+            unique=True,
+            postgresql_where=text("accepted_at IS NULL AND revoked_at IS NULL"),
+        ),
+    )
 
 
 class UserTotp(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -231,6 +285,7 @@ class RecoveryCode(UUIDPrimaryKeyMixin, Base):
 __all__ = [
     "ActivationToken",
     "Household",
+    "Invitation",
     "Membership",
     "RecoveryCode",
     "RefreshToken",

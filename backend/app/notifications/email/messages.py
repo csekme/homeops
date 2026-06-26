@@ -37,6 +37,39 @@ _ACTIVATION_COPY: dict[str, dict[str, str]] = {
 }
 
 
+# Household invitation copy. ``{household}`` is interpolated at build time.
+_INVITATION_COPY: dict[str, dict[str, str]] = {
+    "hu": {
+        "subject": "Meghívást kaptál egy HomeOps háztartásba",
+        "heading": "Csatlakozz a(z) {household} háztartáshoz",
+        "intro": (
+            "Meghívtak, hogy csatlakozz a(z) {household} háztartáshoz a HomeOps-on. "
+            "A csatlakozáshoz kattints az alábbi gombra."
+        ),
+        "cta": "Meghívás elfogadása",
+        "fallback": "Ha a gomb nem működik, másold be ezt a linket a böngészőbe:",
+        "expiry": (
+            "A meghívó korlátozott ideig érvényes. Ha nincs még fiókod, először regisztrálj "
+            "ezzel az e-mail-címmel, majd fogadd el a meghívót."
+        ),
+    },
+    "en": {
+        "subject": "You've been invited to a HomeOps household",
+        "heading": "Join the {household} household",
+        "intro": (
+            "You've been invited to join the {household} household on HomeOps. "
+            "Click the button below to join."
+        ),
+        "cta": "Accept invitation",
+        "fallback": "If the button doesn't work, paste this link into your browser:",
+        "expiry": (
+            "This invitation is valid for a limited time. If you don't have an account yet, "
+            "register with this email address first, then accept the invitation."
+        ),
+    },
+}
+
+
 def _copy(locale: str) -> dict[str, str]:
     return _ACTIVATION_COPY.get(locale, _ACTIVATION_COPY["hu"])
 
@@ -46,4 +79,15 @@ def build_activation_email(*, to: str, activation_url: str, locale: str = "hu") 
     context = {"activation_url": activation_url, **copy}
     html = _env.get_template("activation.html.j2").render(**context)
     text = _env.get_template("activation.txt.j2").render(**context)
+    return EmailMessage(to=to, subject=copy["subject"], html_body=html, text_body=text)
+
+
+def build_invitation_email(
+    *, to: str, invite_url: str, household_name: str, locale: str = "hu"
+) -> EmailMessage:
+    raw = _INVITATION_COPY.get(locale, _INVITATION_COPY["hu"])
+    copy = {key: value.format(household=household_name) for key, value in raw.items()}
+    context = {"invite_url": invite_url, **copy}
+    html = _env.get_template("invitation.html.j2").render(**context)
+    text = _env.get_template("invitation.txt.j2").render(**context)
     return EmailMessage(to=to, subject=copy["subject"], html_body=html, text_body=text)

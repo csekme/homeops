@@ -64,7 +64,7 @@ def _clean_db(_pg: dict[str, str], _privileged_engine) -> None:
     with _privileged_engine.begin() as conn:
         conn.execute(
             text(
-                "TRUNCATE users, households, memberships, refresh_tokens, "
+                "TRUNCATE users, households, memberships, invitations, refresh_tokens, "
                 "activation_tokens, user_totp, recovery_codes RESTART IDENTITY CASCADE"
             )
         )

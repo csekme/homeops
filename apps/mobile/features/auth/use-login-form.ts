@@ -28,18 +28,21 @@ export function useLoginForm(redirectTo = '/'): UseLoginForm {
   });
 
   const onSubmit = form.handleSubmit((values) => {
-    login.mutate(toLoginRequest(values), {
-      onSuccess: (data) => {
-        // 2FA enabled: no session yet — stash the challenge token in memory (never the
-        // navigable URL) and route to the verify screen instead of entering the app.
-        if (data.mfa_required && data.challenge_token) {
-          setPendingChallenge({ challengeToken: data.challenge_token, redirectTo });
-          router.replace('/login/verify');
-          return;
-        }
-        router.replace(redirectTo);
+    login.mutate(
+      { data: toLoginRequest(values) },
+      {
+        onSuccess: (data) => {
+          // 2FA enabled: no session yet — stash the challenge token in memory (never the
+          // navigable URL) and route to the verify screen instead of entering the app.
+          if (data.mfa_required && data.challenge_token) {
+            setPendingChallenge({ challengeToken: data.challenge_token, redirectTo });
+            router.replace('/login/verify');
+            return;
+          }
+          router.replace(redirectTo);
+        },
       },
-    });
+    );
   });
 
   return {

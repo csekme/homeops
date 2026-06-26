@@ -9,7 +9,7 @@
 import {
   clearAccessToken,
   configureApiClient,
-  meQueryKey,
+  getGetMeQueryKey,
   setOnSessionExpired,
 } from '@homeops/api-client';
 
@@ -41,5 +41,5 @@ configureApiClient({
 setOnSessionExpired(() => {
   clearAccessToken();
   void secureRefreshStore.clear();
-  queryClient.setQueryData(meQueryKey, null);
+  queryClient.setQueryData(getGetMeQueryKey(), null);
 });

@@ -1,0 +1,104 @@
+{
+  "switcher": {
+    "label": "Háztartások",
+    "active": "Aktív",
+    "manage": "Háztartás kezelése",
+    "create": "Háztartás létrehozása",
+    "none": "Még nincs háztartás"
+  },
+  "create": {
+    "title": "Háztartás létrehozása",
+    "description": "Hozz létre egy közös háztartást. Te leszel a tulajdonosa.",
+    "nameLabel": "Háztartás neve",
+    "namePlaceholder": "pl. Kovács család",
+    "currencyLabel": "Alapértelmezett pénznem",
+    "submit": "Háztartás létrehozása",
+    "success": "Háztartás létrehozva."
+  },
+  "onboarding": {
+    "title": "Üdv a HomeOps-ban",
+    "description": "Hozd létre az első háztartásodat, hogy közösen kövessétek a teendőket, kiadásokat és dokumentumokat.",
+    "cta": "Háztartás létrehozása"
+  },
+  "settings": {
+    "title": "Háztartás",
+    "description": "Háztartás, tagok és meghívók kezelése.",
+    "tabs": {
+      "general": "Általános",
+      "members": "Tagok",
+      "invitations": "Meghívók"
+    }
+  },
+  "general": {
+    "nameLabel": "Háztartás neve",
+    "cancel": "Mégse",
+    "rename": "Átnevezés",
+    "renamed": "Háztartás átnevezve.",
+    "dangerZone": "Veszélyzóna",
+    "archiveTitle": "Háztartás archiválása",
+    "archiveDescription": "Az archiválás mindenki elől elrejti ezt a háztartást. Ezt nehéz visszavonni.",
+    "archive": "Háztartás archiválása",
+    "archiveConfirmTitle": "Archiválod ezt a háztartást?",
+    "archiveConfirmDescription": "Minden tag elveszíti a hozzáférést. A megerősítéshez folytasd.",
+    "archived": "Háztartás archiválva."
+  },
+  "members": {
+    "title": "Tagok",
+    "you": "Te",
+    "roleLabel": "Szerepkör",
+    "changeRole": "Szerepkör módosítása",
+    "roleChanged": "Szerepkör frissítve.",
+    "remove": "Eltávolítás",
+    "removed": "Tag eltávolítva.",
+    "leave": "Kilépés a háztartásból",
+    "left": "Kiléptél a háztartásból.",
+    "removeConfirmTitle": "Eltávolítod ezt a tagot?",
+    "removeConfirmDescription": "Elveszíti a hozzáférést ehhez a háztartáshoz.",
+    "leaveConfirmTitle": "Kilépsz ebből a háztartásból?",
+    "leaveConfirmDescription": "Elveszíted a hozzáférést ehhez a háztartáshoz."
+  },
+  "invitations": {
+    "title": "Meghívók",
+    "pending": "Függőben lévő meghívók",
+    "none": "Nincs függőben lévő meghívó.",
+    "emailLabel": "E-mail-cím",
+    "emailPlaceholder": "nev@pelda.hu",
+    "roleLabel": "Szerepkör",
+    "send": "Meghívó küldése",
+    "sent": "Meghívó elküldve.",
+    "resend": "Újraküldés",
+    "resent": "Meghívó újraküldve.",
+    "revoke": "Visszavonás",
+    "revoked": "Meghívó visszavonva.",
+    "expires": "Lejár: {{date}}"
+  },
+  "accept": {
+    "title": "Csatlakozás a háztartáshoz",
+    "previewTitle": "Meghívást kaptál",
+    "previewDescription": "Meghívást kaptál, hogy csatlakozz a(z) {{household}} háztartáshoz mint {{role}}.",
+    "accept": "Meghívás elfogadása",
+    "accepted": "Csatlakoztál a(z) {{household}} háztartáshoz.",
+    "signInPrompt": "Jelentkezz be vagy regisztrálj a(z) {{email}} címmel a meghívó elfogadásához.",
+    "register": "Regisztráció",
+    "login": "Bejelentkezés",
+    "wrongAccount": "Ezt a meghívót a(z) {{email}} címre küldték. Jelentkezz be azzal a címmel az elfogadáshoz."
+  },
+  "roles": {
+    "OWNER": "Tulajdonos",
+    "ADMIN": "Adminisztrátor",
+    "MEMBER": "Tag",
+    "VIEWER": "Megfigyelő",
+    "CHILD": "Gyerek"
+  },
+  "errors": {
+    "generic": "Valami hiba történt. Próbáld újra.",
+    "forbidden": "Nincs jogosultságod ehhez a művelethez.",
+    "notFound": "A háztartás nem található.",
+    "conflict": "Ez a művelet most nem engedélyezett (pl. az utolsó tulajdonos, vagy már létező tag/meghívó).",
+    "lastOwner": "Az utolsó tulajdonost nem távolíthatod el és nem fokozhatod le.",
+    "alreadyMember": "Ez a személy már tag.",
+    "pendingInvite": "Erre az e-mail-címre már van függőben lévő meghívó.",
+    "invalidInvite": "Ez a meghívó érvénytelen vagy lejárt.",
+    "emailMismatch": "Ezt a meghívót egy másik e-mail-címre állították ki."
+  }
+}

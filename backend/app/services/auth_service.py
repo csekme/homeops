@@ -24,6 +24,8 @@ from app.domain.enums import UserStatus
 from app.extensions import get_email_sender, get_passwords
 from app.logging_config import get_logger
 from app.notifications.email.messages import build_activation_email
+from app.repositories import households as households_repo
+from app.repositories import memberships as membership_repo
 from app.repositories import users as user_repo
 from app.security import refresh_tokens
 from app.security.csrf import issue_csrf_token
@@ -211,7 +213,15 @@ def refresh(*, raw_refresh: str, ip: str | None, user_agent: str | None) -> Toke
             if user is None or user.status != UserStatus.ACTIVE.value:
                 raise InvalidRefreshSession("invalid refresh session")
 
-            household_id, role = _active_membership(session, user.id)
+            # Re-mint into the household carried by this session (set on login/switch/accept),
+            # so a refresh never silently snaps the user back to their first membership. If
+            # that household is gone (left/removed/deleted) we fall back and re-point the token.
+            household_id, role = _resolve_refresh_household(
+                session, user.id, issued.record.household_id
+            )
+            issued.record.household_id = (
+                uuid.UUID(household_id) if household_id is not None else None
+            )
             access = encode_access_token(
                 user_id=user.id,
                 secret=cfg["JWT_SECRET_KEY"],
@@ -302,6 +312,7 @@ def _issue_session(
         ttl_days=cfg["REFRESH_TOKEN_TTL_DAYS"],
         ip=ip,
         user_agent=user_agent,
+        household_id=household_id,
     )
     return IssuedSession(
         access_token=access,
@@ -322,3 +333,20 @@ def _active_membership(session: Session, user_id: uuid.UUID) -> tuple[str | None
         return None, None
     first = memberships[0]
     return str(first.household_id), first.role.name
+
+
+def _resolve_refresh_household(
+    session: Session, user_id: uuid.UUID, carried: uuid.UUID | None
+) -> tuple[str | None, str | None]:
+    """Re-derive the (household_id, role) claims for a refresh.
+
+    Prefer the household carried on the refresh token (the user's last switch/login), but
+    only if they still have a live membership there; otherwise fall back to the default
+    active membership (covers having left, been removed, or the household being deleted).
+    """
+    if carried is not None:
+        membership = membership_repo.get(session, user_id=user_id, household_id=carried)
+        household = households_repo.get_by_id(session, carried)
+        if membership is not None and household is not None:
+            return str(carried), membership.role.name
+    return _active_membership(session, user_id)

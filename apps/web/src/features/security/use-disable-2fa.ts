@@ -3,7 +3,7 @@
  * recovery codes both re-verify the password. One hook, parameterized by action, so the
  * two near-identical dialogs share logic without duplication.
  */
-import { useRegenerateRecovery, useTotpDisable } from '@homeops/api-client';
+import { useTotpDisable, useTotpRegenerateRecovery } from '@homeops/api-client';
 import { totpDisableSchema, type TotpDisableInput } from '@homeops/validation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, type UseFormReturn } from 'react-hook-form';
@@ -28,7 +28,7 @@ export function useDisable2fa(onDone: () => void): UsePasswordStepUp {
 
   const onSubmit = form.handleSubmit((values) => {
     disable.mutate(
-      { password: values.password },
+      { data: { password: values.password } },
       {
         onSuccess: () => {
           form.reset({ password: '' });
@@ -51,7 +51,7 @@ export function useDisable2fa(onDone: () => void): UsePasswordStepUp {
 export function useRegenerateRecoveryCodes(
   onDone: (codes: string[]) => void,
 ): UsePasswordStepUp {
-  const regenerate = useRegenerateRecovery();
+  const regenerate = useTotpRegenerateRecovery();
   const form = useForm<TotpDisableInput>({
     resolver: zodResolver(totpDisableSchema),
     defaultValues: { password: '' },
@@ -59,11 +59,11 @@ export function useRegenerateRecoveryCodes(
 
   const onSubmit = form.handleSubmit((values) => {
     regenerate.mutate(
-      { password: values.password },
+      { data: { password: values.password } },
       {
         onSuccess: (data) => {
           form.reset({ password: '' });
-          onDone(data.codes);
+          onDone(data.codes ?? []);
         },
       },
     );

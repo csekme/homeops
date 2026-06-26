@@ -5,7 +5,7 @@ import '@/lib/zod-i18n';
 import {
   clearAccessToken,
   configureApiClient,
-  meQueryKey,
+  getGetMeQueryKey,
   setOnSessionExpired,
 } from '@homeops/api-client';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -34,7 +34,7 @@ configureApiClient({ baseUrl: '/api' });
 // probes (no token) just redirect silently.
 setOnSessionExpired(({ wasAuthenticated }) => {
   clearAccessToken();
-  queryClient.setQueryData(meQueryKey, null);
+  queryClient.setQueryData(getGetMeQueryKey(), null);
   if (wasAuthenticated) toast.error(i18n.t('sessionExpired'));
 });
 

@@ -7,7 +7,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.db.models import Membership, User
+from app.db.models import Household, Membership, User
 
 
 def get_by_email(session: Session, email: str) -> User | None:
@@ -27,12 +27,21 @@ def add(session: Session, user: User) -> User:
 
 
 def list_memberships(session: Session, user_id: uuid.UUID | str) -> list[Membership]:
-    """All memberships for a user (cross-household — runs in no-tenant mode, plan §3.6)."""
+    """A user's memberships in *live* households (cross-household — no-tenant mode, plan §3.6).
+
+    Soft-deleted (archived) households are excluded: RLS doesn't filter on ``deleted_at``, so
+    the join + ``deleted_at IS NULL`` is what keeps archived households out of ``/me`` and out
+    of the active-household selection (login/refresh).
+    """
     return list(
         session.execute(
             select(Membership)
+            .join(Household, Membership.household_id == Household.id)
             .options(joinedload(Membership.role), joinedload(Membership.household))
-            .where(Membership.user_id == uuid.UUID(str(user_id)))
+            .where(
+                Membership.user_id == uuid.UUID(str(user_id)),
+                Household.deleted_at.is_(None),
+            )
             .order_by(Membership.created_at)
         )
         .scalars()

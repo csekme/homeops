@@ -262,11 +262,19 @@ def me() -> dict[str, object]:
     view = auth_service.get_me(user_id=claims.sub)
     if view is None:
         abort(404, "User not found.")
+    # The token claim can lag reality (e.g. the active household was archived since it was
+    # issued). Only report an active household that the user still has a live membership in;
+    # otherwise null it so the client doesn't point at a vanished tenant until the next refresh.
+    live_household_ids = {m.household_id for m in view.memberships}
+    active_household_id = (
+        claims.household_id if claims.household_id in live_household_ids else None
+    )
     return {
         "id": view.id,
         "email": view.email,
         "display_name": view.display_name,
         "status": view.status,
+        "active_household_id": active_household_id,
         "memberships": [
             {
                 "household_id": m.household_id,

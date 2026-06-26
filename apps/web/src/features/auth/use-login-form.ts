@@ -26,7 +26,9 @@ export function useLoginForm(redirectTo = '/'): UseLoginForm {
   });
 
   const onSubmit = form.handleSubmit((values) => {
-    login.mutate(toLoginRequest(values), {
+    login.mutate(
+      { data: toLoginRequest(values) },
+      {
       onSuccess: (data) => {
         // 2FA enabled: no session yet — carry the challenge token (in-memory router
         // state, never the URL) to the verify screen instead of entering the app.
@@ -39,7 +41,8 @@ export function useLoginForm(redirectTo = '/'): UseLoginForm {
         }
         navigate(redirectTo, { replace: true });
       },
-    });
+      },
+    );
   });
 
   return {

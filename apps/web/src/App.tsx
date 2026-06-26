@@ -4,6 +4,7 @@ import { AppShell } from '@/components/app-shell';
 import { RequireAuth } from '@/components/require-auth';
 import ActivatePage from '@/pages/activate';
 import DashboardPage from '@/pages/dashboard';
+import HouseholdPage from '@/pages/household';
 import InvitePage from '@/pages/invite';
 import LoginPage from '@/pages/login';
 import LoginVerifyPage from '@/pages/login-verify';
@@ -25,6 +26,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/household" element={<HouseholdPage />} />
           <Route path="/obligations" element={<PlaceholderPage titleKey="nav.obligations" />} />
           <Route path="/expenses" element={<PlaceholderPage titleKey="nav.expenses" />} />
           <Route path="/services" element={<PlaceholderPage titleKey="nav.services" />} />

@@ -58,10 +58,14 @@ def issue(
     user_agent: str | None = None,
     family_id: uuid.UUID | None = None,
     prev_id: uuid.UUID | None = None,
+    household_id: uuid.UUID | str | None = None,
 ) -> IssuedRefreshToken:
     raw = _new_raw_token()
     record = RefreshToken(
         user_id=user_id,
+        # The active household rides along so refresh() re-mints into the same tenant the
+        # user switched to (feature plan §Backend). Rotation carries it forward.
+        household_id=uuid.UUID(str(household_id)) if household_id is not None else None,
         family_id=family_id or uuid.uuid4(),
         prev_id=prev_id,
         token_hash=hash_token(raw),
@@ -125,6 +129,25 @@ def rotate(
         user_agent=user_agent,
         family_id=record.family_id,
         prev_id=record.id,
+        household_id=record.household_id,
+    )
+
+
+def set_active_household(
+    session: Session, *, user_id: uuid.UUID | str, household_id: uuid.UUID | str | None
+) -> None:
+    """Point the user's live refresh sessions at ``household_id`` so the next refresh
+    re-mints the access token into the switched household (feature plan §Backend).
+
+    The switch endpoint is authenticated by the *access* token and never receives the raw
+    refresh token (the web refresh cookie is path-scoped to ``/api/auth``), so we identify
+    the sessions by ``user_id`` instead. Caveat: a user signed in on multiple devices shares
+    one active household — a switch on one device follows to the others on their next refresh.
+    """
+    session.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == uuid.UUID(str(user_id)), RefreshToken.revoked_at.is_(None))
+        .values(household_id=uuid.UUID(str(household_id)) if household_id is not None else None)
     )
 
 

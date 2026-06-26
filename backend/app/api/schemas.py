@@ -8,7 +8,11 @@ from __future__ import annotations
 
 from apiflask import Schema
 from apiflask.fields import Boolean, Email, Integer, List, Nested, String
-from apiflask.validators import Length
+from apiflask.validators import Length, OneOf, Regexp
+
+from app.domain.enums import Role as RoleEnum
+
+_ROLE_NAMES = [r.value for r in RoleEnum]
 
 
 class MessageOut(Schema):
@@ -42,6 +46,9 @@ class UserOut(Schema):
     email = String()
     display_name = String()
     status = String()
+    # The household the current access token is scoped to (from the JWT claim); null until
+    # the user creates/switches into one. Lets clients show the active tenant on boot.
+    active_household_id = String(allow_none=True)
     memberships = List(Nested(MembershipOut))
 
 
@@ -98,3 +105,81 @@ class TotpStatusOut(Schema):
 
 class RecoveryCodesOut(Schema):
     codes = List(String())
+
+
+# ── Household management ──────────────────────────────────────────────────────────────
+
+
+class HouseholdCreateIn(Schema):
+    name = String(required=True, validate=Length(min=1, max=120))
+    # ISO-4217 alphabetic code; the DB CHECK enforces the same pattern.
+    default_currency = String(
+        load_default="HUF", validate=Regexp(r"^[A-Z]{3}$", error="Invalid ISO-4217 currency.")
+    )
+
+
+class HouseholdRenameIn(Schema):
+    name = String(required=True, validate=Length(min=1, max=120))
+
+
+class HouseholdOut(Schema):
+    id = String()
+    name = String()
+    default_currency = String()
+    role = String()  # the caller's role in this household
+
+
+class HouseholdListOut(Schema):
+    households = List(Nested(HouseholdOut))
+
+
+class SwitchOut(Schema):
+    """Lighter session payload for create/switch/accept — a new access token only (the
+    refresh family is untouched, so no cookie/body refresh token)."""
+
+    access_token = String()
+    token_type = String()
+    household = Nested(HouseholdOut)
+
+
+class MemberOut(Schema):
+    membership_id = String()
+    user_id = String()
+    email = String()
+    display_name = String()
+    role = String()
+
+
+class MemberListOut(Schema):
+    members = List(Nested(MemberOut))
+
+
+class ChangeRoleIn(Schema):
+    role = String(required=True, validate=OneOf(_ROLE_NAMES))
+
+
+class InviteCreateIn(Schema):
+    email = Email(required=True)
+    role = String(required=True, validate=OneOf(_ROLE_NAMES))
+
+
+class InvitationOut(Schema):
+    id = String()
+    email = String()
+    role = String()
+    expires_at = String()
+    created_at = String()
+
+
+class InvitationListOut(Schema):
+    invitations = List(Nested(InvitationOut))
+
+
+class InvitationPreviewOut(Schema):
+    household_name = String()
+    role = String()
+    email = String()
+
+
+class InviteAcceptIn(Schema):
+    token = String(required=True, validate=Length(min=1))

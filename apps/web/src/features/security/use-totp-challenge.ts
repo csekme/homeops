@@ -26,7 +26,7 @@ export function useTotpChallenge(challengeToken: string, redirectTo = '/'): UseT
 
   const onSubmit = form.handleSubmit((values) => {
     verify.mutate(
-      { challenge_token: challengeToken, code: values.code },
+      { data: { challenge_token: challengeToken, code: values.code } },
       { onSuccess: () => navigate(redirectTo, { replace: true }) },
     );
   });

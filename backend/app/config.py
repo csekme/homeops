@@ -64,6 +64,9 @@ class Config:
         self.ACTIVATION_TOKEN_TTL_HOURS = _int("ACTIVATION_TOKEN_TTL_HOURS", 24)
         self.PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://homeops.localhost")
 
+        # Household invitation flow (feature plan §Backend).
+        self.INVITATION_TOKEN_TTL_HOURS = _int("INVITATION_TOKEN_TTL_HOURS", 168)
+
         # SMTP (plan §3.7).
         self.SMTP_HOST = os.environ.get("SMTP_HOST", "localhost")
         self.SMTP_PORT = _int("SMTP_PORT", 1025)
