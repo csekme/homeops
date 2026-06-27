@@ -1,0 +1,8 @@
+{
+  "android": {
+    "package": "com.csekme.homeops"
+  },
+  "ios": {
+    "bundleIdentifier": "com.csekme.homeops"
+  }
+}

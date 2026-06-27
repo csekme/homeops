@@ -2,20 +2,41 @@ import { useGetMe, useListHouseholds } from '@homeops/api-client';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KeyboardAwareScrollView } from '@/components/keyboard-aware-scroll-view';
 import { TextField } from '@/components/text-field';
+import {
+  Actionsheet,
+  ActionsheetBackdrop,
+  ActionsheetContent,
+  ActionsheetDragIndicator,
+  ActionsheetDragIndicatorWrapper,
+  ActionsheetItem,
+  ActionsheetItemText,
+} from '@/components/ui/actionsheet';
 import { Alert, AlertIcon, AlertText } from '@/components/ui/alert';
+import { Avatar, AvatarFallbackText } from '@/components/ui/avatar';
+import { Badge, BadgeText } from '@/components/ui/badge';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Divider } from '@/components/ui/divider';
 import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
-import { AlertCircleIcon } from '@/components/ui/icon';
+import {
+  AlertCircleIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  Icon,
+  TrashIcon,
+} from '@/components/ui/icon';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useActiveHousehold } from '@/features/households/use-households';
+import { initials } from '@/lib/initials';
 import {
   useArchiveHouseholdAction,
   useRenameForm,
@@ -28,37 +49,115 @@ import {
 import { useMemberActions, useMembers } from '@/features/households/use-members';
 
 const ROLES = ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER', 'CHILD'] as const;
+type Role = (typeof ROLES)[number];
 
-function RoleChips({
-  value,
-  onChange,
-  disabled,
+/** Map a role onto a badge variant so the role reads at a glance. */
+function roleBadgeVariant(role: string): 'default' | 'secondary' | 'outline' {
+  if (role === 'OWNER') return 'default';
+  if (role === 'ADMIN') return 'secondary';
+  return 'outline';
+}
+
+/** Bottom-sheet role picker. Reused by the member list and the invite form. */
+function RoleSelectSheet({
+  isOpen,
+  current,
+  onClose,
+  onSelect,
 }: {
-  value: string;
-  onChange?: (role: string) => void;
-  disabled?: boolean;
+  isOpen: boolean;
+  current: string;
+  onClose: () => void;
+  onSelect: (role: Role) => void;
 }) {
   const { t } = useTranslation('households');
   return (
-    <HStack space="xs" className="flex-wrap">
-      {ROLES.map((r) => {
-        const selected = r === value;
-        return (
-          <Pressable
+    <Actionsheet isOpen={isOpen} onClose={onClose}>
+      <ActionsheetBackdrop />
+      <ActionsheetContent>
+        <ActionsheetDragIndicatorWrapper>
+          <ActionsheetDragIndicator />
+        </ActionsheetDragIndicatorWrapper>
+        <Heading size="sm" className="w-full px-3 pb-1 pt-2">
+          {t('members.changeRole')}
+        </Heading>
+        {ROLES.map((r) => (
+          <ActionsheetItem
             key={r}
-            disabled={disabled || !onChange || selected}
-            onPress={() => onChange?.(r)}
-            className={`rounded-full border px-3 py-1 ${
-              selected ? 'border-primary bg-primary' : 'border-border'
-            }`}
+            onPress={() => {
+              onSelect(r);
+              onClose();
+            }}
           >
-            <Text className={`text-xs ${selected ? 'text-primary-foreground' : ''}`}>
+            <ActionsheetItemText className={r === current ? 'font-semibold text-foreground' : ''}>
               {t(`roles.${r}`)}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </HStack>
+            </ActionsheetItemText>
+            {r === current ? <Icon as={CheckIcon} size="sm" className="ml-auto text-primary" /> : null}
+          </ActionsheetItem>
+        ))}
+      </ActionsheetContent>
+    </Actionsheet>
+  );
+}
+
+/** Bottom-sheet destructive confirmation, so a stray tap can't remove anyone. */
+function ConfirmSheet({
+  isOpen,
+  title,
+  description,
+  confirmLabel,
+  onClose,
+  onConfirm,
+}: {
+  isOpen: boolean;
+  title: string;
+  description?: string;
+  confirmLabel: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const { t } = useTranslation('households');
+  return (
+    <Actionsheet isOpen={isOpen} onClose={onClose}>
+      <ActionsheetBackdrop />
+      <ActionsheetContent>
+        <ActionsheetDragIndicatorWrapper>
+          <ActionsheetDragIndicator />
+        </ActionsheetDragIndicatorWrapper>
+        <VStack space="xs" className="w-full px-3 pb-3 pt-2">
+          <Heading size="sm">{title}</Heading>
+          {description ? (
+            <Text className="text-sm text-muted-foreground">{description}</Text>
+          ) : null}
+        </VStack>
+        <VStack space="sm" className="w-full px-3 pb-2">
+          <Button
+            variant="destructive"
+            onPress={() => {
+              onConfirm();
+              onClose();
+            }}
+          >
+            <ButtonText>{confirmLabel}</ButtonText>
+          </Button>
+          <Button variant="outline" onPress={onClose}>
+            <ButtonText>{t('general.cancel')}</ButtonText>
+          </Button>
+        </VStack>
+      </ActionsheetContent>
+    </Actionsheet>
+  );
+}
+
+/** A grouped settings section: a small muted header above a card. */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <VStack space="sm">
+      <Text className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {title}
+      </Text>
+      {children}
+    </VStack>
   );
 }
 
@@ -80,21 +179,26 @@ export default function HouseholdManageScreen() {
   return (
     <View className="flex-1 bg-background">
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-        <HStack className="items-center justify-between px-4 py-3">
-          <Heading size="lg">{active?.name ?? t('settings.title')}</Heading>
-          <Pressable onPress={() => router.back()}>
-            <Text className="text-primary">{t('general.cancel')}</Text>
+        <HStack className="items-center gap-1 px-2 py-2">
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel={t('general.back')}
+            className="h-10 w-10 items-center justify-center rounded-md"
+          >
+            <Icon as={ChevronLeftIcon} size="xl" className="text-foreground" />
           </Pressable>
+          <Heading size="lg" numberOfLines={1} className="flex-1">
+            {active?.name ?? t('settings.title')}
+          </Heading>
         </HStack>
 
-        <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
+        <KeyboardAwareScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
           <GeneralSection
             householdId={activeHouseholdId}
             name={active?.name ?? ''}
             currency={active?.default_currency ?? 'HUF'}
             canManage={canManageMembers}
-            isOwner={isOwner}
-            onArchived={() => router.replace('/')}
           />
 
           <MembersSection
@@ -104,7 +208,15 @@ export default function HouseholdManageScreen() {
           />
 
           {canManageMembers ? <InvitationsSection householdId={activeHouseholdId} /> : null}
-        </ScrollView>
+
+          {/* Danger zone pinned to the bottom of the screen, below every other section. */}
+          {isOwner ? (
+            <DangerZoneSection
+              householdId={activeHouseholdId}
+              onArchived={() => router.replace('/')}
+            />
+          ) : null}
+        </KeyboardAwareScrollView>
       </SafeAreaView>
     </View>
   );
@@ -115,53 +227,65 @@ function GeneralSection({
   name,
   currency,
   canManage,
-  isOwner,
-  onArchived,
 }: {
   householdId: string;
   name: string;
   currency: string;
   canManage: boolean;
-  isOwner: boolean;
-  onArchived: () => void;
 }) {
   const { t } = useTranslation('households');
   const { form, onSubmit, isPending, isError, errorKey } = useRenameForm(householdId, name, currency);
-  const { onArchive, isPending: archiving } = useArchiveHouseholdAction(householdId, onArchived);
   const { errors } = form.formState;
 
   return (
-    <VStack space="md">
-      <Heading size="md">{t('settings.tabs.general')}</Heading>
-      {isError ? (
-        <Alert variant="destructive">
-          <AlertIcon as={AlertCircleIcon} />
-          <AlertText>{t(errorKey)}</AlertText>
-        </Alert>
-      ) : null}
-      <TextField
-        control={form.control}
-        name="name"
-        label={t('general.nameLabel')}
-        editable={canManage}
-        errorMessage={errors.name?.message}
-      />
-      {canManage ? (
-        <Button onPress={onSubmit} isDisabled={isPending} className="self-start">
-          {isPending ? <ButtonSpinner /> : null}
-          <ButtonText>{t('general.rename')}</ButtonText>
-        </Button>
-      ) : null}
+    <Section title={t('settings.tabs.general')}>
+      <Card>
+        <VStack space="md">
+          {isError ? (
+            <Alert variant="destructive">
+              <AlertIcon as={AlertCircleIcon} />
+              <AlertText>{t(errorKey)}</AlertText>
+            </Alert>
+          ) : null}
+          <TextField
+            control={form.control}
+            name="name"
+            label={t('general.nameLabel')}
+            editable={canManage}
+            errorMessage={errors.name?.message}
+          />
+          {canManage ? (
+            <Button onPress={onSubmit} isDisabled={isPending} className="self-start">
+              {isPending ? <ButtonSpinner /> : null}
+              <ButtonText>{t('general.rename')}</ButtonText>
+            </Button>
+          ) : null}
+        </VStack>
+      </Card>
+    </Section>
+  );
+}
 
-      {isOwner ? (
-        <VStack space="sm" className="mt-2 rounded-xl border border-destructive/40 p-4">
-          <Heading size="sm" className="text-destructive">
-            {t('general.dangerZone')}
-          </Heading>
+/** Archive (destructive) — rendered last so it sits at the very bottom of the screen. */
+function DangerZoneSection({
+  householdId,
+  onArchived,
+}: {
+  householdId: string;
+  onArchived: () => void;
+}) {
+  const { t } = useTranslation('households');
+  const { onArchive, isPending: archiving } = useArchiveHouseholdAction(householdId, onArchived);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+
+  return (
+    <Section title={t('general.dangerZone')}>
+      <Card className="border-destructive/40">
+        <VStack space="sm">
           <Text className="text-sm text-muted-foreground">{t('general.archiveDescription')}</Text>
           <Button
             variant="outline"
-            onPress={onArchive}
+            onPress={() => setConfirmArchive(true)}
             isDisabled={archiving}
             className="self-start border-destructive"
           >
@@ -169,8 +293,17 @@ function GeneralSection({
             <ButtonText>{t('general.archive')}</ButtonText>
           </Button>
         </VStack>
-      ) : null}
-    </VStack>
+      </Card>
+
+      <ConfirmSheet
+        isOpen={confirmArchive}
+        title={t('general.archiveConfirmTitle')}
+        description={t('general.archiveDescription')}
+        confirmLabel={t('general.archive')}
+        onClose={() => setConfirmArchive(false)}
+        onConfirm={onArchive}
+      />
+    </Section>
   );
 }
 
@@ -187,50 +320,91 @@ function MembersSection({
   const { members } = useMembers(householdId);
   const { onChangeRole, onRemove } = useMemberActions(householdId, currentUserId);
 
+  const [roleSheet, setRoleSheet] = useState<{ userId: string; current: string } | null>(null);
+  const [confirm, setConfirm] = useState<{ userId: string; isSelf: boolean } | null>(null);
+
   return (
-    <VStack space="md">
-      <Heading size="md">{t('members.title')}</Heading>
-      <VStack className="rounded-xl border border-border">
+    <Section title={t('members.title')}>
+      <Card className="gap-0 p-0">
         {members.map((m, i) => {
           const isSelf = m.user_id === currentUserId;
+          const role = m.role ?? 'MEMBER';
+          const canEdit = canManage && !isSelf;
           return (
             <View key={m.membership_id}>
               {i > 0 ? <Divider /> : null}
-              <VStack space="sm" className="p-4">
-                <HStack className="items-center justify-between">
-                  <VStack className="flex-1">
-                    <HStack space="xs" className="items-center">
-                      <Text className="font-medium">{m.display_name}</Text>
-                      {isSelf ? (
-                        <Text className="text-xs text-muted-foreground">
-                          ({t('members.you')})
-                        </Text>
-                      ) : null}
-                    </HStack>
-                    <Text className="text-sm text-muted-foreground">{m.email}</Text>
-                  </VStack>
-                  {isSelf ? (
-                    <Pressable onPress={() => onRemove(m.user_id!)}>
-                      <Text className="text-sm text-destructive">{t('members.leave')}</Text>
+              <HStack space="md" className="items-center p-4">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallbackText>{initials(m.display_name)}</AvatarFallbackText>
+                </Avatar>
+                <VStack space="xs" className="flex-1">
+                  <HStack space="xs" className="items-center">
+                    <Text className="font-medium" numberOfLines={1}>
+                      {m.display_name}
+                    </Text>
+                    {isSelf ? (
+                      <Text className="text-xs text-muted-foreground">({t('members.you')})</Text>
+                    ) : null}
+                  </HStack>
+                  <Text className="text-sm text-muted-foreground" numberOfLines={1}>
+                    {m.email}
+                  </Text>
+                  {canEdit ? (
+                    <Pressable
+                      onPress={() => setRoleSheet({ userId: m.user_id!, current: role })}
+                      className="mt-1 flex-row items-center gap-1 self-start"
+                    >
+                      <Badge variant={roleBadgeVariant(role)}>
+                        <BadgeText>{t(`roles.${role}`)}</BadgeText>
+                      </Badge>
+                      <Icon as={ChevronDownIcon} size="xs" className="text-muted-foreground" />
                     </Pressable>
-                  ) : canManage ? (
-                    <Pressable onPress={() => onRemove(m.user_id!)}>
-                      <Text className="text-sm text-destructive">{t('members.remove')}</Text>
-                    </Pressable>
-                  ) : null}
-                </HStack>
-                <RoleChips
-                  value={m.role ?? 'MEMBER'}
-                  onChange={
-                    canManage && !isSelf ? (role) => onChangeRole(m.user_id!, role) : undefined
-                  }
-                />
-              </VStack>
+                  ) : (
+                    <Badge variant={roleBadgeVariant(role)} className="mt-1 self-start">
+                      <BadgeText>{t(`roles.${role}`)}</BadgeText>
+                    </Badge>
+                  )}
+                </VStack>
+                {isSelf || canManage ? (
+                  <Pressable
+                    onPress={() => setConfirm({ userId: m.user_id!, isSelf })}
+                    accessibilityRole="button"
+                    accessibilityLabel={isSelf ? t('members.leave') : t('members.remove')}
+                    className="h-10 w-10 items-center justify-center rounded-md"
+                  >
+                    <Icon as={TrashIcon} size="sm" className="text-destructive" />
+                  </Pressable>
+                ) : null}
+              </HStack>
             </View>
           );
         })}
-      </VStack>
-    </VStack>
+      </Card>
+
+      <RoleSelectSheet
+        isOpen={roleSheet !== null}
+        current={roleSheet?.current ?? ''}
+        onClose={() => setRoleSheet(null)}
+        onSelect={(role) => {
+          if (roleSheet) onChangeRole(roleSheet.userId, role);
+        }}
+      />
+
+      <ConfirmSheet
+        isOpen={confirm !== null}
+        title={confirm?.isSelf ? t('members.leaveConfirmTitle') : t('members.removeConfirmTitle')}
+        description={
+          confirm?.isSelf
+            ? t('members.leaveConfirmDescription')
+            : t('members.removeConfirmDescription')
+        }
+        confirmLabel={confirm?.isSelf ? t('members.leave') : t('members.remove')}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => {
+          if (confirm) onRemove(confirm.userId);
+        }}
+      />
+    </Section>
   );
 }
 
@@ -240,7 +414,9 @@ function InvitationsSection({ householdId }: { householdId: string }) {
   const { invitations } = useInvitations(householdId);
   const { onResend, onRevoke } = useInvitationActions(householdId);
   const { errors } = form.formState;
-  const [role, setRole] = useState('MEMBER');
+  const [role, setRole] = useState<Role>('MEMBER');
+  const [roleSheetOpen, setRoleSheetOpen] = useState(false);
+  const [revokeId, setRevokeId] = useState<string | null>(null);
 
   const submit = () => {
     form.setValue('role', role as never);
@@ -248,58 +424,98 @@ function InvitationsSection({ householdId }: { householdId: string }) {
   };
 
   return (
-    <VStack space="md">
-      <Heading size="md">{t('invitations.title')}</Heading>
-      {isError ? (
-        <Alert variant="destructive">
-          <AlertIcon as={AlertCircleIcon} />
-          <AlertText>{t(errorKey)}</AlertText>
-        </Alert>
-      ) : null}
-      <TextField
-        control={form.control}
-        name="email"
-        label={t('invitations.emailLabel')}
-        placeholder={t('invitations.emailPlaceholder')}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        errorMessage={errors.email?.message}
-      />
-      <Text className="text-sm font-medium">{t('invitations.roleLabel')}</Text>
-      <RoleChips value={role} onChange={setRole} />
-      <Button onPress={submit} isDisabled={isPending} className="self-start">
-        {isPending ? <ButtonSpinner /> : null}
-        <ButtonText>{t('invitations.send')}</ButtonText>
-      </Button>
+    <Section title={t('invitations.title')}>
+      <Card>
+        <VStack space="md">
+          {isError ? (
+            <Alert variant="destructive">
+              <AlertIcon as={AlertCircleIcon} />
+              <AlertText>{t(errorKey)}</AlertText>
+            </Alert>
+          ) : null}
+          <TextField
+            control={form.control}
+            name="email"
+            label={t('invitations.emailLabel')}
+            placeholder={t('invitations.emailPlaceholder')}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            errorMessage={errors.email?.message}
+          />
+          <VStack space="xs">
+            <Text className="text-sm font-medium">{t('invitations.roleLabel')}</Text>
+            <Pressable
+              onPress={() => setRoleSheetOpen(true)}
+              className="flex-row items-center justify-between rounded-md border border-border px-3 py-2"
+            >
+              <Text>{t(`roles.${role}`)}</Text>
+              <Icon as={ChevronDownIcon} size="sm" className="text-muted-foreground" />
+            </Pressable>
+          </VStack>
+          <Button onPress={submit} isDisabled={isPending} className="self-start">
+            {isPending ? <ButtonSpinner /> : null}
+            <ButtonText>{t('invitations.send')}</ButtonText>
+          </Button>
+        </VStack>
+      </Card>
 
-      <Heading size="sm" className="mt-2">
+      <Text className="px-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {t('invitations.pending')}
-      </Heading>
+      </Text>
       {invitations.length === 0 ? (
-        <Text className="text-sm text-muted-foreground">{t('invitations.none')}</Text>
+        <Card>
+          <Text className="text-sm text-muted-foreground">{t('invitations.none')}</Text>
+        </Card>
       ) : (
-        <VStack className="rounded-xl border border-border">
+        <Card className="gap-0 p-0">
           {invitations.map((inv, i) => (
             <View key={inv.id}>
               {i > 0 ? <Divider /> : null}
-              <HStack className="items-center justify-between p-4">
-                <VStack className="flex-1">
-                  <Text className="font-medium">{inv.email}</Text>
-                  <Text className="text-sm text-muted-foreground">{t(`roles.${inv.role}`)}</Text>
+              <HStack className="items-center justify-between p-4" space="md">
+                <VStack space="xs" className="flex-1">
+                  <Text className="font-medium" numberOfLines={1}>
+                    {inv.email}
+                  </Text>
+                  <Badge variant={roleBadgeVariant(inv.role ?? 'MEMBER')} className="self-start">
+                    <BadgeText>{t(`roles.${inv.role}`)}</BadgeText>
+                  </Badge>
                 </VStack>
-                <HStack space="md">
-                  <Pressable onPress={() => onResend(inv.id!)}>
-                    <Text className="text-sm text-primary">{t('invitations.resend')}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => onRevoke(inv.id!)}>
-                    <Text className="text-sm text-destructive">{t('invitations.revoke')}</Text>
+                <HStack space="xs" className="items-center">
+                  <Button variant="ghost" size="sm" onPress={() => onResend(inv.id!)}>
+                    <ButtonText className="text-primary">{t('invitations.resend')}</ButtonText>
+                  </Button>
+                  <Pressable
+                    onPress={() => setRevokeId(inv.id!)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('invitations.revoke')}
+                    className="h-10 w-10 items-center justify-center rounded-md"
+                  >
+                    <Icon as={TrashIcon} size="sm" className="text-destructive" />
                   </Pressable>
                 </HStack>
               </HStack>
             </View>
           ))}
-        </VStack>
+        </Card>
       )}
-    </VStack>
+
+      <RoleSelectSheet
+        isOpen={roleSheetOpen}
+        current={role}
+        onClose={() => setRoleSheetOpen(false)}
+        onSelect={setRole}
+      />
+
+      <ConfirmSheet
+        isOpen={revokeId !== null}
+        title={t('invitations.revokeConfirmTitle')}
+        description={t('invitations.revokeConfirmDescription')}
+        confirmLabel={t('invitations.revoke')}
+        onClose={() => setRevokeId(null)}
+        onConfirm={() => {
+          if (revokeId) onRevoke(revokeId);
+        }}
+      />
+    </Section>
   );
 }

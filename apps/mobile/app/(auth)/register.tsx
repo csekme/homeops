@@ -88,6 +88,17 @@ export default function RegisterScreen() {
           textContentType="newPassword"
         />
 
+        <TextField
+          control={form.control}
+          name="confirmPassword"
+          label={t('register.confirmPassword')}
+          errorMessage={errors.confirmPassword?.message}
+          secureTextEntry
+          autoCapitalize="none"
+          autoComplete="new-password"
+          textContentType="newPassword"
+        />
+
         <Button onPress={onSubmit} isDisabled={isPending}>
           {isPending ? <ButtonSpinner /> : null}
           <ButtonText>{t('register.submit')}</ButtonText>

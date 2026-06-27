@@ -21,7 +21,7 @@ export function useRegisterForm(): UseRegisterForm {
 
   const form = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { email: '', password: '', displayName: '' },
+    defaultValues: { email: '', password: '', confirmPassword: '', displayName: '' },
   });
 
   const onSubmit = form.handleSubmit((values) => {

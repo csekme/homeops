@@ -35,11 +35,17 @@ configureApiClient({
   refreshTokenStore: secureRefreshStore,
 });
 
-// When a refresh ultimately fails, drop the session: wipe the in-memory access token and
-// the keychain refresh token, then mark `me` as null so the route guard redirects to the
-// login stack. Setting (not removing) the cache keeps it fresh and avoids a refetch loop.
-setOnSessionExpired(() => {
+/**
+ * Drop the local session: wipe the in-memory access token + keychain refresh token and mark
+ * `me` as null so the route guard redirects to the login stack. Used both on refresh failure
+ * and on explicit logout — the bearer transport keeps no cookie, so the client must clear
+ * itself (the logout endpoint only revokes server-side). Setting (not removing) the cache
+ * keeps it fresh and avoids a refetch loop.
+ */
+export function clearSession() {
   clearAccessToken();
   void secureRefreshStore.clear();
   queryClient.setQueryData(getGetMeQueryKey(), null);
-});
+}
+
+setOnSessionExpired(clearSession);

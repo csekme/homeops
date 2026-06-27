@@ -31,6 +31,7 @@
   },
   "general": {
     "nameLabel": "Household name",
+    "back": "Back",
     "cancel": "Cancel",
     "rename": "Rename",
     "renamed": "Household renamed.",
@@ -70,6 +71,8 @@
     "resent": "Invitation re-sent.",
     "revoke": "Revoke",
     "revoked": "Invitation revoked.",
+    "revokeConfirmTitle": "Revoke this invitation?",
+    "revokeConfirmDescription": "The invite link will stop working.",
     "expires": "Expires {{date}}"
   },
   "accept": {

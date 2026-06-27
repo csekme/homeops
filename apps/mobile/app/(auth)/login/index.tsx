@@ -1,4 +1,5 @@
 import { Link } from 'expo-router';
+import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { AuthShell } from '@/components/auth-shell';
@@ -58,6 +59,12 @@ export default function LoginScreen() {
           autoComplete="current-password"
           textContentType="password"
         />
+
+        <View className="items-end">
+          <Link href="/forgot-password">
+            <Text className="text-sm font-medium text-primary">{t('login.forgotPassword')}</Text>
+          </Link>
+        </View>
 
         <Button onPress={onSubmit} isDisabled={isPending}>
           {isPending ? <ButtonSpinner /> : null}

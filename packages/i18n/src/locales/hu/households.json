@@ -31,6 +31,7 @@
   },
   "general": {
     "nameLabel": "Háztartás neve",
+    "back": "Vissza",
     "cancel": "Mégse",
     "rename": "Átnevezés",
     "renamed": "Háztartás átnevezve.",
@@ -70,6 +71,8 @@
     "resent": "Meghívó újraküldve.",
     "revoke": "Visszavonás",
     "revoked": "Meghívó visszavonva.",
+    "revokeConfirmTitle": "Visszavonod ezt a meghívót?",
+    "revokeConfirmDescription": "A meghívó link a továbbiakban nem fog működni.",
     "expires": "Lejár: {{date}}"
   },
   "accept": {

@@ -23,7 +23,14 @@ export default function AcceptInviteScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const { preview, isLoading, isError } = useInvitePreview(token);
   const { data: user } = useGetMe();
-  const { onAccept, isPending, isError: acceptError, errorKey } = useAcceptInvite(token);
+  const {
+    onAccept,
+    onDecline,
+    isPending,
+    isDeclining,
+    isError: acceptError,
+    errorKey,
+  } = useAcceptInvite(token);
 
   const matches = user && preview && user.email?.toLowerCase() === preview.email?.toLowerCase();
 
@@ -57,10 +64,20 @@ export default function AcceptInviteScreen() {
               ) : null}
 
               {matches ? (
-                <Button onPress={onAccept} isDisabled={isPending}>
-                  {isPending ? <ButtonSpinner /> : null}
-                  <ButtonText>{t('accept.accept')}</ButtonText>
-                </Button>
+                <VStack space="sm">
+                  <Button onPress={onAccept} isDisabled={isPending || isDeclining}>
+                    {isPending ? <ButtonSpinner /> : null}
+                    <ButtonText>{t('accept.accept')}</ButtonText>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onPress={onDecline}
+                    isDisabled={isPending || isDeclining}
+                  >
+                    {isDeclining ? <ButtonSpinner /> : null}
+                    <ButtonText>{t('accept.decline')}</ButtonText>
+                  </Button>
+                </VStack>
               ) : (
                 <Alert variant="destructive">
                   <AlertIcon as={AlertCircleIcon} />

@@ -44,10 +44,11 @@ describe("loginSchema", () => {
 });
 
 describe("registerSchema", () => {
-  it("accepts a strong password", () => {
+  it("accepts a strong password with a matching confirmation", () => {
     const r = registerSchema.safeParse({
       email: "a@b.com",
       password: "longenough",
+      confirmPassword: "longenough",
       displayName: "Alice",
     });
     expect(r.success).toBe(true);
@@ -57,6 +58,17 @@ describe("registerSchema", () => {
     const r = registerSchema.safeParse({
       email: "a@b.com",
       password: "short",
+      confirmPassword: "short",
+      displayName: "Alice",
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a mismatched confirmation", () => {
+    const r = registerSchema.safeParse({
+      email: "a@b.com",
+      password: "longenough",
+      confirmPassword: "different",
       displayName: "Alice",
     });
     expect(r.success).toBe(false);

@@ -5,5 +5,21 @@
   "overdue": "Lejárt teendők",
   "monthlySpend": "Havi kiadások",
   "noUpcoming": "Nincs közelgő teendőd.",
-  "financialHidden": "A pénzügyi adatok el vannak rejtve a szerepköröd miatt."
+  "financialHidden": "A pénzügyi adatok el vannak rejtve a szerepköröd miatt.",
+  "modules": {
+    "title": "Modulok",
+    "comingSoon": "Hamarosan",
+    "payments": "Fizetések",
+    "documents": "Dokumentumok",
+    "utilities": "Közművek",
+    "tasks": "Teendők"
+  },
+  "deadlines": {
+    "title": "Közelgő határidők",
+    "empty": "Nincs közelgő határidő. Minden naprakész."
+  },
+  "menu": {
+    "title": "Menü",
+    "noHousehold": "Nincs aktív háztartás"
+  }
 }

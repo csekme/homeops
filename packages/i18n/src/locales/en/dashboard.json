@@ -5,5 +5,21 @@
   "overdue": "Overdue obligations",
   "monthlySpend": "Monthly spend",
   "noUpcoming": "You have no upcoming obligations.",
-  "financialHidden": "Financial data is hidden for your role."
+  "financialHidden": "Financial data is hidden for your role.",
+  "modules": {
+    "title": "Modules",
+    "comingSoon": "Coming soon",
+    "payments": "Payments",
+    "documents": "Documents",
+    "utilities": "Utilities",
+    "tasks": "Tasks"
+  },
+  "deadlines": {
+    "title": "Upcoming deadlines",
+    "empty": "Nothing due soon. You're all caught up."
+  },
+  "menu": {
+    "title": "Menu",
+    "noHousehold": "No active household"
+  }
 }
