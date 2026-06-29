@@ -123,3 +123,6 @@ Expo (managed) + expo-router + expo-secure-store + gluestack-ui v4 + NativeWind.
 ## Full Documentation
 
 - [llms-full.txt](./llms-full.txt): Complete documentation for all components and guides
+
+
+MINDEN ESETBEN FIGYELJ ARRA HOGY A MOBIL BEVITELI MEZŐKNÉL A BILLENTYŰZET ELŐJÖVETELE KITAKARHATJA AZ INPUTOT!!!
