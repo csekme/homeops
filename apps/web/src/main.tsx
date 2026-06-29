@@ -2,13 +2,7 @@ import './index.css';
 import '@/lib/i18n';
 import '@/lib/zod-i18n';
 
-import {
-  clearAccessToken,
-  configureApiClient,
-  getGetMeQueryKey,
-  setOnSessionEstablished,
-  setOnSessionExpired,
-} from '@homeops/api-client';
+import { configureApiClient } from '@homeops/api-client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -23,33 +17,18 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import i18n from '@/lib/i18n';
 import { AuthBootProvider } from '@/lib/auth';
 import { queryClient } from '@/lib/query';
+import { installSessionHandlers } from '@/lib/session-handlers';
 import { ThemeProvider } from '@/lib/theme';
 
 // Same-origin behind the reverse proxy → relative `/api` base (plan §3.12).
 configureApiClient({ baseUrl: '/api' });
 
-// When a refresh ultimately fails (refresh token expired/revoked/reused), drop the
-// session: clear the in-memory token and mark `me` as null so <RequireAuth> redirects
-// to /login. Setting the cache (rather than removing it) keeps it fresh → no refetch loop.
-// Only show a "session expired" notice when a real session was lost — boot/first-visit
-// probes (no token) just redirect silently.
-setOnSessionExpired(({ wasAuthenticated }) => {
-  clearAccessToken();
-  queryClient.setQueryData(getGetMeQueryKey(), null);
-  if (wasAuthenticated) toast.error(i18n.t('sessionExpired'));
-});
-
-// A fresh login / 2FA-verify minted a session. The expiry handler above may have cached a
-// stale `me = null` (still "fresh" for staleTime), which would make <RequireAuth> bounce the
-// user back to /login. If `me` is null, drop it so the guard refetches (Splash → app); if a
-// real user is cached (e.g. household switch), invalidate to refetch in the background.
-setOnSessionEstablished(() => {
-  const key = getGetMeQueryKey();
-  if (queryClient.getQueryData(key)) {
-    void queryClient.invalidateQueries({ queryKey: key });
-  } else {
-    queryClient.removeQueries({ queryKey: key });
-  }
+// Wire session lifecycle → QueryClient. Only show a "session expired" notice when a real
+// session was lost — boot/first-visit probes (no token) just redirect silently.
+installSessionHandlers(queryClient, {
+  onExpired: ({ wasAuthenticated }) => {
+    if (wasAuthenticated) toast.error(i18n.t('sessionExpired'));
+  },
 });
 
 createRoot(document.getElementById('root')!).render(
