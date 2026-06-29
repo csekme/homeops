@@ -7,6 +7,7 @@
  */
 
 export * from "./activateIn";
+export * from "./avatarUploadIn";
 export * from "./changeRoleIn";
 export * from "./changeRoleInRole";
 export * from "./deviceListOut";
@@ -50,6 +51,7 @@ export * from "./totpStatusOut";
 export * from "./totpVerifyIn";
 export * from "./userOut";
 export * from "./userOutActiveHouseholdId";
+export * from "./userOutAvatarUrl";
 export * from "./validationError";
 export * from "./validationErrorDetail";
 export * from "./validationErrorDetailLocation";

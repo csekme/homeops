@@ -3,7 +3,7 @@ import { ChevronsUpDownIcon, LogOutIcon, SettingsIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +51,9 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="size-8 rounded-lg">
+                {user.avatar_url ? (
+                  <AvatarImage className="rounded-lg" src={user.avatar_url} alt="" />
+                ) : null}
                 <AvatarFallback className="rounded-lg text-xs">
                   {initials(user.display_name ?? '?')}
                 </AvatarFallback>

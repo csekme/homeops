@@ -6,10 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { UserOutActiveHouseholdId } from "./userOutActiveHouseholdId";
+import type { UserOutAvatarUrl } from "./userOutAvatarUrl";
 import type { MembershipOut } from "./membershipOut";
 
 export interface UserOut {
   active_household_id?: UserOutActiveHouseholdId;
+  avatar_url?: UserOutAvatarUrl;
   display_name?: string;
   email?: string;
   id?: string;

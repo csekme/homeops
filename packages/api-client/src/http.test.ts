@@ -208,6 +208,32 @@ describe('apiFetch — failed refresh fires the session-expired handler', () => 
   });
 });
 
+/* ----------------------------------------------------- multipart (uploads) */
+
+describe('apiFetch — multipart body', () => {
+  it('passes a FormData body through untouched and does not force a JSON Content-Type', async () => {
+    const captured: Array<{ body: unknown; headers: Record<string, string> }> = [];
+    const fetchMock = vi.fn(
+      async (_url: string, init?: { headers?: Record<string, string>; body?: unknown }) => {
+        captured.push({ body: init?.body, headers: init?.headers ?? {} });
+        return res(200, { ok: true });
+      },
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    setAccessToken(makeJwt(900));
+
+    const form = new FormData();
+    form.append('file', new Blob(['x'], { type: 'image/webp' }), 'avatar.webp');
+    await apiFetch('/auth/avatar', { method: 'PUT', body: form });
+
+    // The exact FormData instance is forwarded (not JSON.stringified)…
+    expect(captured[0]?.body).toBe(form);
+    // …and we let fetch set the multipart boundary instead of forcing application/json.
+    expect(captured[0]?.headers['Content-Type']).toBeUndefined();
+    expect(captured[0]?.headers['Authorization']).toBe(`Bearer ${makeJwt(900)}`);
+  });
+});
+
 /* ------------------------------------------------- mobile (bearer transport) */
 
 describe('bearer transport (mobile)', () => {

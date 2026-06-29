@@ -18,6 +18,7 @@ import type {
 
 import type {
   ActivateIn,
+  AvatarUploadIn,
   DeviceListOut,
   DeviceRenameIn,
   ForgotPasswordIn,
@@ -117,6 +118,158 @@ export const useActivate = <
   TContext
 > => {
   const mutationOptions = getActivateMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary Remove the authenticated user's profile picture.
+ */
+export const deleteAvatar = () => {
+  return customInstance<void>({ url: `/api/auth/avatar`, method: "DELETE" });
+};
+
+export const getDeleteAvatarMutationOptions = <
+  TError = HTTPError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAvatar>>,
+    TError,
+    void,
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAvatar>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["deleteAvatar"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAvatar>>,
+    void
+  > = () => {
+    return deleteAvatar();
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAvatarMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAvatar>>
+>;
+
+export type DeleteAvatarMutationError = HTTPError;
+
+/**
+ * @summary Remove the authenticated user's profile picture.
+ */
+export const useDeleteAvatar = <
+  TError = HTTPError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAvatar>>,
+    TError,
+    void,
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAvatar>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationOptions = getDeleteAvatarMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary Upload/replace the authenticated user's profile picture.
+ */
+export const setAvatar = (avatarUploadIn: AvatarUploadIn) => {
+  const formData = new FormData();
+  formData.append(`file`, avatarUploadIn.file);
+
+  return customInstance<UserOut>({
+    url: `/api/auth/avatar`,
+    method: "PUT",
+    headers: { "Content-Type": "multipart/form-data" },
+    data: formData,
+  });
+};
+
+export const getSetAvatarMutationOptions = <
+  TError = HTTPError | ValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setAvatar>>,
+    TError,
+    { data: AvatarUploadIn },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setAvatar>>,
+  TError,
+  { data: AvatarUploadIn },
+  TContext
+> => {
+  const mutationKey = ["setAvatar"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setAvatar>>,
+    { data: AvatarUploadIn }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return setAvatar(data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetAvatarMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setAvatar>>
+>;
+export type SetAvatarMutationBody = AvatarUploadIn;
+export type SetAvatarMutationError = HTTPError | ValidationError;
+
+/**
+ * @summary Upload/replace the authenticated user's profile picture.
+ */
+export const useSetAvatar = <
+  TError = HTTPError | ValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setAvatar>>,
+    TError,
+    { data: AvatarUploadIn },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setAvatar>>,
+  TError,
+  { data: AvatarUploadIn },
+  TContext
+> => {
+  const mutationOptions = getSetAvatarMutationOptions(options);
 
   return useMutation(mutationOptions);
 };

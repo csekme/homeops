@@ -1,5 +1,30 @@
 {
   "title": "Beállítások",
+  "profile": {
+    "tabLabel": "Profil",
+    "title": "Profilkép",
+    "description": "Tölts fel egy fotót magadról. Húzva és nagyítva igazíthatod a körön belül.",
+    "change": "Kép módosítása",
+    "upload": "Kép feltöltése",
+    "remove": "Kép eltávolítása",
+    "removeTitle": "Eltávolítod a profilképet?",
+    "removeDescription": "A képet eltávolítjuk, és a monogramod jelenik meg helyette.",
+    "cancel": "Mégse",
+    "save": "Mentés",
+    "zoom": "Nagyítás",
+    "cropTitle": "Igazítsd a fotódat",
+    "cropInstruction": "Húzd a mozgatáshoz, csippentéssel vagy a csúszkával nagyíts.",
+    "pickFromLibrary": "Választás a galériából",
+    "takePhoto": "Fotó készítése",
+    "saved": "A profilkép frissült.",
+    "removed": "A profilkép eltávolítva.",
+    "errors": {
+      "tooLarge": "Ez a kép túl nagy. Válassz kisebbet.",
+      "invalidImage": "Ez a fájl nem érvényes kép.",
+      "permissionDenied": "Engedély szükséges a fotók eléréséhez.",
+      "generic": "Nem sikerült frissíteni a képet. Próbáld újra."
+    }
+  },
   "security": {
     "tabLabel": "Biztonság",
     "title": "Kétlépcsős hitelesítés (2FA)",

@@ -14,6 +14,19 @@
         ],
         "type": "object"
       },
+      "AvatarUploadIn": {
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "format": "binary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "type": "object"
+      },
       "ChangeRoleIn": {
         "additionalProperties": false,
         "properties": {
@@ -663,6 +676,12 @@
               "null"
             ]
           },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "display_name": {
             "type": "string"
           },
@@ -717,7 +736,7 @@
     }
   },
   "info": {
-    "description": "HomeOps backend API — household management SaaS (payments, documents, obligations).",
+    "description": "HomeOps backend API \u2014 household management SaaS (payments, documents, obligations).",
     "title": "HomeOps API",
     "version": "0.1.0"
   },
@@ -759,6 +778,90 @@
           }
         },
         "summary": "Activate an account with the emailed token.",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/avatar": {
+      "delete": {
+        "operationId": "deleteAvatar",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Remove the authenticated user's profile picture.",
+        "tags": [
+          "Auth"
+        ]
+      },
+      "put": {
+        "operationId": "setAvatar",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarUploadIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Upload/replace the authenticated user's profile picture.",
         "tags": [
           "Auth"
         ]
@@ -2325,6 +2428,45 @@
         },
         "summary": "Preview a pending invitation (household + role)."
       }
+    },
+    "/api/users/{user_id}/avatar": {
+      "get": {
+        "operationId": "getUserAvatar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Serve a user's profile picture (public, cache-busted by ?v=).",
+        "tags": [
+          "Users"
+        ]
+      }
     }
   },
   "tags": [
@@ -2335,6 +2477,10 @@
     {
       "description": "Health and readiness probes.",
       "name": "System"
+    },
+    {
+      "description": "Public user resources (avatar image serving).",
+      "name": "Users"
     }
   ]
 }

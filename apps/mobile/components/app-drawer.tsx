@@ -6,7 +6,7 @@ import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LanguageToggle } from '@/components/language-toggle';
-import { Avatar, AvatarFallbackText } from '@/components/ui/avatar';
+import { Avatar, AvatarFallbackText, AvatarImage } from '@/components/ui/avatar';
 import { Badge, BadgeText } from '@/components/ui/badge';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { Divider } from '@/components/ui/divider';
@@ -35,6 +35,7 @@ import { VStack } from '@/components/ui/vstack';
 import { useActiveHousehold, useHouseholdSwitcher } from '@/features/households/use-households';
 import { initials } from '@/lib/initials';
 import { clearSession } from '@/lib/api';
+import { resolveAvatarUrl } from '@/lib/avatar-url';
 
 /** Slide-in app menu: the signed-in user, household switcher, settings and logout. */
 export function AppDrawer({
@@ -58,6 +59,7 @@ export function AppDrawer({
 
   const list = households?.households ?? [];
   const active = list.find((h) => h.id === activeHouseholdId);
+  const avatarUri = resolveAvatarUrl(user?.avatar_url);
 
   const go = (path: string) => {
     onClose();
@@ -88,24 +90,31 @@ export function AppDrawer({
           className="border-b border-border p-4"
           style={{ paddingTop: insets.top + 16 }}
         >
-          <HStack space="md" className="w-full items-center">
-            <Avatar>
-              <AvatarFallbackText>{initials(user?.display_name)}</AvatarFallbackText>
-            </Avatar>
-            <VStack className="flex-1">
-              <Heading size="sm" numberOfLines={1}>
-                {user?.display_name}
-              </Heading>
-              <Text className="text-sm text-muted-foreground" numberOfLines={1}>
-                {user?.email}
-              </Text>
-              {role ? (
-                <Badge variant="secondary" className="mt-1 self-start">
-                  <BadgeText>{t(`roles.${role}`, { ns: 'households' })}</BadgeText>
-                </Badge>
-              ) : null}
-            </VStack>
-          </HStack>
+          {/* Tap the header to open the profile screen (avatar upload + account). */}
+          <Pressable onPress={() => go('/profile')} className="w-full">
+            <HStack space="md" className="w-full items-center">
+              <Avatar>
+                {avatarUri ? (
+                  <AvatarImage source={{ uri: avatarUri }} />
+                ) : (
+                  <AvatarFallbackText>{initials(user?.display_name)}</AvatarFallbackText>
+                )}
+              </Avatar>
+              <VStack className="flex-1">
+                <Heading size="sm" numberOfLines={1}>
+                  {user?.display_name}
+                </Heading>
+                <Text className="text-sm text-muted-foreground" numberOfLines={1}>
+                  {user?.email}
+                </Text>
+                {role ? (
+                  <Badge variant="secondary" className="mt-1 self-start">
+                    <BadgeText>{t(`roles.${role}`, { ns: 'households' })}</BadgeText>
+                  </Badge>
+                ) : null}
+              </VStack>
+            </HStack>
+          </Pressable>
         </DrawerHeader>
 
         <DrawerBody className="my-0 flex-1 p-0">

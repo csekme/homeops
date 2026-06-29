@@ -16,6 +16,7 @@ from flask_limiter.util import get_remote_address
 from app.notifications.email import EmailSender, SmtpEmailSender
 from app.security.passwords import Passwords
 from app.security.secrets import EnvelopeAesCipher, EnvKeyProvider, SecretCipher
+from app.storage import StorageAdapter, build_storage
 
 if TYPE_CHECKING:
     from apiflask import APIFlask
@@ -41,6 +42,7 @@ def init_services(app: APIFlask) -> None:
     app.extensions["secret_cipher"] = EnvelopeAesCipher(
         EnvKeyProvider(kek_b64=app.config["SECRET_KEK"])
     )
+    app.extensions["avatar_storage"] = build_storage(app.config)
 
 
 def get_passwords() -> Passwords:
@@ -53,3 +55,7 @@ def get_email_sender() -> EmailSender:
 
 def get_secret_cipher() -> SecretCipher:
     return cast(SecretCipher, current_app.extensions["secret_cipher"])
+
+
+def get_avatar_storage() -> StorageAdapter:
+    return cast(StorageAdapter, current_app.extensions["avatar_storage"])

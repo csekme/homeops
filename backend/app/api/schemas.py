@@ -7,7 +7,7 @@ response serialization, and the OpenAPI source of truth.
 from __future__ import annotations
 
 from apiflask import Schema
-from apiflask.fields import Boolean, Email, Integer, List, Nested, String
+from apiflask.fields import Boolean, Email, File, Integer, List, Nested, String
 from apiflask.validators import Length, OneOf, Regexp
 
 from app.domain.enums import Role as RoleEnum
@@ -62,10 +62,19 @@ class UserOut(Schema):
     email = String()
     display_name = String()
     status = String()
+    # Public, cache-busted path to the profile picture (e.g. "/api/users/{id}/avatar?v=…");
+    # null when the user has no avatar. Relative — clients resolve against their API origin.
+    avatar_url = String(allow_none=True)
     # The household the current access token is scoped to (from the JWT claim); null until
     # the user creates/switches into one. Lets clients show the active tenant on boot.
     active_household_id = String(allow_none=True)
     memberships = List(Nested(MembershipOut))
+
+
+class AvatarUploadIn(Schema):
+    # Multipart file field (location='files'); the client uploads a cropped square image and
+    # the service re-encodes it to a canonical WEBP (feature plan §Avatar).
+    file = File(required=True)
 
 
 class LoginOut(Schema):

@@ -7,6 +7,7 @@ inject values (e.g. a Testcontainers ``DATABASE_URL``) via ``create_app(override
 from __future__ import annotations
 
 import os
+import tempfile
 
 # Dev-only placeholder secrets. They MUST NOT be used in production — ``ProductionConfig``
 # fails fast if they survive into a prod boot (plan §7.4: "titok nem a kódban").
@@ -102,6 +103,16 @@ class Config:
         self.RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
         self.RATELIMIT_ENABLED = _bool(os.environ.get("RATELIMIT_ENABLED"), True)
 
+        # Avatar / profile-picture storage (feature plan §Avatar). Local disk behind the
+        # StorageAdapter seam; an S3/MinIO adapter can replace it without touching callers.
+        self.AVATAR_LOCAL_DIR = os.environ.get("AVATAR_LOCAL_DIR", "./var/avatars")
+        # Hard cap on the raw upload (the client already crops/downscales; this guards the
+        # endpoint). 5 MiB is generous for a cropped square.
+        self.AVATAR_MAX_UPLOAD_BYTES = _int("AVATAR_MAX_UPLOAD_BYTES", 5 * 1024 * 1024)
+        # The square edge (px) every avatar is re-encoded to — one canonical size, scaled
+        # down by the circular Avatar component wherever it renders.
+        self.AVATAR_OUTPUT_SIZE = _int("AVATAR_OUTPUT_SIZE", 512)
+
 
 class DevelopmentConfig(Config):
     ENV_NAME = "development"
@@ -118,6 +129,10 @@ class TestingConfig(Config):
         self.AUTH_COOKIE_SECURE = False  # the test client speaks plain HTTP
         self.RATELIMIT_STORAGE_URI = "memory://"
         self.RATELIMIT_ENABLED = False  # don't let limits flake the suite
+        # Avatars land in a throwaway temp dir so the suite never writes into the repo.
+        self.AVATAR_LOCAL_DIR = os.environ.get(
+            "AVATAR_LOCAL_DIR", tempfile.mkdtemp(prefix="homeops-avatars-")
+        )
 
 
 class ProductionConfig(Config):

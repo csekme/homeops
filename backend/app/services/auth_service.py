@@ -33,7 +33,7 @@ from app.security import refresh_tokens
 from app.security.csrf import issue_csrf_token
 from app.security.device_naming import device_name
 from app.security.jwt_tokens import decode_mfa_challenge, encode_access_token, encode_mfa_challenge
-from app.services import totp_service
+from app.services import avatar_service, totp_service
 from app.services.exceptions import (
     AccountNotActivated,
     InvalidActivationToken,
@@ -430,6 +430,8 @@ class MeView:
     display_name: str
     status: str
     memberships: list[MembershipView]
+    # Public, cache-busted path to the profile picture; None when the user has no avatar.
+    avatar_url: str | None
 
 
 def get_me(*, user_id: uuid.UUID | str) -> MeView | None:
@@ -451,6 +453,7 @@ def get_me(*, user_id: uuid.UUID | str) -> MeView | None:
             display_name=user.display_name,
             status=user.status,
             memberships=memberships,
+            avatar_url=avatar_service.avatar_url(user.id, user.avatar_updated_at),
         )
 
 

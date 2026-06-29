@@ -14,9 +14,11 @@ def register_blueprints(app: APIFlask) -> None:
     from app.api.households import households_bp
     from app.api.invitations import invitations_bp
     from app.api.totp import totp_bp
+    from app.api.users import users_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(totp_bp)
     app.register_blueprint(households_bp)
     app.register_blueprint(invitations_bp)
+    app.register_blueprint(users_bp)

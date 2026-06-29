@@ -59,6 +59,17 @@ class DeviceNotFound(AuthError):
     """The device does not exist or belongs to another user (→ 404, no existence leak)."""
 
 
+# ── Avatar / profile picture (feature plan §Avatar) ──────────────────────────────────
+
+
+class InvalidAvatarImage(Exception):
+    """The uploaded avatar is too large, empty, or not a decodable image (→ 400/413)."""
+
+    def __init__(self, message: str, *, too_large: bool = False) -> None:
+        super().__init__(message)
+        self.too_large = too_large
+
+
 # ── Household / membership / invitation errors (feature plan §Backend) ────────────────
 
 

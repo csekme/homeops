@@ -12,7 +12,9 @@ export * from './token-store';
 export * from './http';
 export * from './session';
 
-// Generated typed hooks (tags-split). Auth + TOTP, household/invitation ("default"), health.
+// Generated typed hooks (tags-split). Auth + TOTP, household/invitation ("default"), health,
+// public user resources (avatar serving).
 export * from './generated/auth/auth';
 export * from './generated/default/default';
 export * from './generated/system/system';
+export * from './generated/users/users';

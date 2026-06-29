@@ -157,18 +157,27 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   // 2FA-bypass secret only goes to the endpoints that consume it (login/2FA-verify); the
   // identity also tags the device-management calls so the backend can mark "this device".
   const deviceHeaders = await resolveDeviceHeaders(path, cfg);
+  // Multipart uploads (e.g. avatar) pass a FormData body: let fetch set the multipart
+  // boundary itself (don't force JSON) and send the body untouched. RN FormData works the
+  // same way. Everything else is JSON-serialised as before.
+  const isMultipart = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const send = async (): Promise<Response> => {
     const headers: Record<string, string> = { ...deviceHeaders };
     const token = getAccessToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+    if (options.body !== undefined && !isMultipart) headers['Content-Type'] = 'application/json';
     // Bearer transport: flag every request so the auth endpoints answer in body-token mode.
     if (cfg.authTransport === 'bearer') headers[AUTH_TRANSPORT_HEADER] = 'bearer';
     return fetch(`${cfg.baseUrl}${path}`, {
       method: options.method ?? 'GET',
       ...(cfg.includeCredentials ? { credentials: 'include' as const } : {}),
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body:
+        options.body === undefined
+          ? undefined
+          : isMultipart
+            ? (options.body as FormData)
+            : JSON.stringify(options.body),
     });
   };
 

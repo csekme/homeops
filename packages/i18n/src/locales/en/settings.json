@@ -1,5 +1,30 @@
 {
   "title": "Settings",
+  "profile": {
+    "tabLabel": "Profile",
+    "title": "Profile picture",
+    "description": "Upload a photo of yourself. Drag and zoom to position it inside the circle.",
+    "change": "Change photo",
+    "upload": "Upload photo",
+    "remove": "Remove photo",
+    "removeTitle": "Remove profile picture?",
+    "removeDescription": "Your picture will be removed and replaced with your initials.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "zoom": "Zoom",
+    "cropTitle": "Position your photo",
+    "cropInstruction": "Drag to move, pinch or use the slider to zoom.",
+    "pickFromLibrary": "Choose from library",
+    "takePhoto": "Take a photo",
+    "saved": "Profile picture updated.",
+    "removed": "Profile picture removed.",
+    "errors": {
+      "tooLarge": "That image is too large. Please choose a smaller one.",
+      "invalidImage": "That file isn't a valid image.",
+      "permissionDenied": "Permission is needed to access your photos.",
+      "generic": "Couldn't update your picture. Please try again."
+    }
+  },
   "security": {
     "tabLabel": "Security",
     "title": "Two-factor authentication (2FA)",

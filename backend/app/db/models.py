@@ -56,6 +56,12 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         String(16), nullable=False, default=UserStatus.PENDING.value
     )
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Profile picture (feature plan §Avatar). ``avatar_key`` is the storage key (NULL = no
+    # picture); ``avatar_updated_at`` doubles as the cache-buster (``?v=`` on the public URL).
+    avatar_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     memberships: Mapped[list[Membership]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

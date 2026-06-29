@@ -52,9 +52,13 @@ def create_app(overrides: dict | None = None) -> APIFlask:
             "description": "Registration, activation, login and refresh-token lifecycle.",
         },
         {"name": "System", "description": "Health and readiness probes."},
+        {"name": "Users", "description": "Public user resources (avatar image serving)."},
     ]
     app.config.from_object(cfg)
     app.config["SECRET_KEY"] = cfg.JWT_SECRET_KEY
+    # Cap request bodies so an oversized avatar upload can't be read into memory before the
+    # service-level check runs (a small headroom over the avatar cap covers multipart overhead).
+    app.config["MAX_CONTENT_LENGTH"] = cfg.AVATAR_MAX_UPLOAD_BYTES + 1024 * 1024
     if overrides:
         app.config.update(overrides)
 

@@ -15,6 +15,7 @@ from flask import after_this_request, current_app, request
 
 from app.api.schemas import (
     ActivateIn,
+    AvatarUploadIn,
     DeviceListOut,
     DeviceRenameIn,
     ForgotPasswordIn,
@@ -30,11 +31,12 @@ from app.api.security import bearer_auth
 from app.extensions import limiter
 from app.security.csrf import CSRF_HEADER, verify_csrf
 from app.security.jwt_tokens import AccessClaims
-from app.services import auth_service, device_service
+from app.services import auth_service, avatar_service, device_service
 from app.services.exceptions import (
     AccountNotActivated,
     DeviceNotFound,
     InvalidActivationToken,
+    InvalidAvatarImage,
     InvalidCredentials,
     InvalidPasswordResetToken,
     InvalidRefreshSession,
@@ -180,6 +182,9 @@ def issue_session_response(issued: auth_service.IssuedSession) -> dict[str, obje
             "email": issued.user.email,
             "display_name": issued.user.display_name,
             "status": issued.user.status,
+            "avatar_url": avatar_service.avatar_url(
+                issued.user.id, issued.user.avatar_updated_at
+            ),
             "memberships": [],
         },
     }
@@ -417,6 +422,11 @@ def logout() -> tuple[str, int]:
 def me() -> dict[str, object]:
     # @auth_required guarantees current_user is populated.
     claims = cast(AccessClaims, bearer_auth.current_user)
+    return _me_payload(claims)
+
+
+def _me_payload(claims: AccessClaims) -> dict[str, object]:
+    """Build the ``UserOut`` body for the authenticated user (shared by /me + /avatar)."""
     view = auth_service.get_me(user_id=claims.sub)
     if view is None:
         abort(404, "User not found.")
@@ -432,6 +442,7 @@ def me() -> dict[str, object]:
         "email": view.email,
         "display_name": view.display_name,
         "status": view.status,
+        "avatar_url": view.avatar_url,
         "active_household_id": active_household_id,
         "memberships": [
             {
@@ -442,6 +453,42 @@ def me() -> dict[str, object]:
             for m in view.memberships
         ],
     }
+
+
+# ── Avatar / profile picture (feature plan §Avatar) ──────────────────────────────────
+
+
+@auth_bp.put("/avatar")
+@auth_bp.auth_required(bearer_auth)
+@auth_bp.input(AvatarUploadIn, location="files")
+@auth_bp.output(UserOut)
+@auth_bp.doc(
+    summary="Upload/replace the authenticated user's profile picture.",
+    operation_id="setAvatar",
+    tags=["Auth"],
+)
+def set_avatar(files_data: dict) -> dict[str, object]:
+    claims = cast(AccessClaims, bearer_auth.current_user)
+    upload = files_data["file"]
+    try:
+        avatar_service.set_avatar(user_id=claims.sub, raw=upload.read())
+    except InvalidAvatarImage as exc:
+        abort(413 if exc.too_large else 400, str(exc))
+    return _me_payload(claims)
+
+
+@auth_bp.delete("/avatar")
+@auth_bp.auth_required(bearer_auth)
+@auth_bp.output(EmptySchema, status_code=204)
+@auth_bp.doc(
+    summary="Remove the authenticated user's profile picture.",
+    operation_id="deleteAvatar",
+    tags=["Auth"],
+)
+def delete_avatar() -> tuple[str, int]:
+    claims = cast(AccessClaims, bearer_auth.current_user)
+    avatar_service.remove_avatar(user_id=claims.sub)
+    return "", 204
 
 
 # ── Device / session management (feature plan §Device registration) ──────────────────

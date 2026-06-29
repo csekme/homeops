@@ -29,6 +29,13 @@
           "backgroundColor": "#ffffff",
           "resizeMode": "contain"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "HomeOps needs access to your photos so you can set a profile picture.",
+          "cameraPermission": "HomeOps needs access to your camera so you can take a profile picture."
+        }
       ]
     ]
   }
