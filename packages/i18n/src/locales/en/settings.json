@@ -11,6 +11,27 @@
     "disableButton": "Disable",
     "regenerateButton": "Regenerate recovery codes"
   },
+  "devices": {
+    "title": "Devices",
+    "description": "Devices and browsers where you're signed in. Sign out any you don't recognise.",
+    "empty": "No active devices.",
+    "thisDevice": "This device",
+    "trusted": "Trusted",
+    "lastSeen": "Last active {{time}}",
+    "rename": "Rename",
+    "renameTitle": "Rename device",
+    "nameLabel": "Device name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "signOut": "Sign out",
+    "signOutTitle": "Sign out this device?",
+    "signOutDescription": "This device will need to sign in again.",
+    "signOutCurrentDescription": "This is the device you're using now — you'll be signed out immediately.",
+    "confirmSignOut": "Sign out",
+    "signOutOthers": "Sign out all other devices",
+    "signOutOthersTitle": "Sign out all other devices?",
+    "signOutOthersDescription": "Every device except this one will need to sign in again."
+  },
   "twofactor": {
     "setup": {
       "title": "Set up your authenticator app",

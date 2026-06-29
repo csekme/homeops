@@ -1,4 +1,5 @@
 import { Link } from 'expo-router';
+import { Controller } from 'react-hook-form';
 import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -6,8 +7,14 @@ import { AuthShell } from '@/components/auth-shell';
 import { TextField } from '@/components/text-field';
 import { Alert, AlertIcon, AlertText } from '@/components/ui/alert';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
+import {
+  Checkbox,
+  CheckboxIcon,
+  CheckboxIndicator,
+  CheckboxLabel,
+} from '@/components/ui/checkbox';
 import { HStack } from '@/components/ui/hstack';
-import { AlertCircleIcon } from '@/components/ui/icon';
+import { AlertCircleIcon, CheckIcon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useLoginForm } from '@/features/auth/use-login-form';
@@ -65,6 +72,24 @@ export default function LoginScreen() {
             <Text className="text-sm font-medium text-primary">{t('login.forgotPassword')}</Text>
           </Link>
         </View>
+
+        <Controller
+          control={form.control}
+          name="rememberMe"
+          render={({ field }) => (
+            <Checkbox
+              value="rememberMe"
+              isChecked={field.value}
+              onChange={field.onChange}
+              accessibilityLabel={t('login.rememberMe')}
+            >
+              <CheckboxIndicator>
+                <CheckboxIcon as={CheckIcon} />
+              </CheckboxIndicator>
+              <CheckboxLabel>{t('login.rememberMe')}</CheckboxLabel>
+            </Checkbox>
+          )}
+        />
 
         <Button onPress={onSubmit} isDisabled={isPending}>
           {isPending ? <ButtonSpinner /> : null}

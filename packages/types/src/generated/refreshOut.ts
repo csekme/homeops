@@ -8,6 +8,7 @@
 
 export interface RefreshOut {
   access_token?: string;
+  device_trust?: string;
   refresh_token?: string;
   token_type?: string;
 }

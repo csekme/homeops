@@ -26,6 +26,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   Icon,
+  LockIcon,
   SettingsIcon,
 } from '@/components/ui/icon';
 import { Pressable } from '@/components/ui/pressable';
@@ -164,18 +165,23 @@ export function AppDrawer({
               </Pressable>
             </VStack>
 
+            <Divider className="my-2" />
             {activeHouseholdId ? (
-              <>
-                <Divider className="my-2" />
-                <Pressable
-                  onPress={() => go('/household')}
-                  className="flex-row items-center gap-3 px-4 py-3"
-                >
-                  <Icon as={SettingsIcon} size="sm" className="text-foreground" />
-                  <Text>{t('switcher.manage', { ns: 'households' })}</Text>
-                </Pressable>
-              </>
+              <Pressable
+                onPress={() => go('/household')}
+                className="flex-row items-center gap-3 px-4 py-3"
+              >
+                <Icon as={SettingsIcon} size="sm" className="text-foreground" />
+                <Text>{t('switcher.manage', { ns: 'households' })}</Text>
+              </Pressable>
             ) : null}
+            <Pressable
+              onPress={() => go('/devices')}
+              className="flex-row items-center gap-3 px-4 py-3"
+            >
+              <Icon as={LockIcon} size="sm" className="text-foreground" />
+              <Text>{t('devices.title', { ns: 'settings' })}</Text>
+            </Pressable>
           </ScrollView>
         </DrawerBody>
 

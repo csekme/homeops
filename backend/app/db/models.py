@@ -13,10 +13,12 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     LargeBinary,
     String,
     UniqueConstraint,
@@ -139,6 +141,12 @@ class RefreshToken(UUIDPrimaryKeyMixin, Base):
     household_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("households.id", ondelete="SET NULL"), nullable=True
     )
+    # The device/session this family belongs to (feature plan §Device registration). Carried
+    # forward on rotation like ``household_id``; ``SET NULL`` so deleting a device keeps the
+    # token history. Revoking a device revokes every family pointing at it.
+    device_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("devices.id", ondelete="SET NULL"), nullable=True
+    )
     family_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     prev_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
@@ -156,6 +164,62 @@ class RefreshToken(UUIDPrimaryKeyMixin, Base):
     __table_args__ = (
         Index("ix_refresh_tokens_family_id", "family_id"),
         Index("ix_refresh_tokens_user_id", "user_id"),
+        Index("ix_refresh_tokens_device_id", "device_id"),
+    )
+
+
+class Device(UUIDPrimaryKeyMixin, Base):
+    """A login device/session the user can see and revoke (feature plan §Device registration).
+
+    User-scoped (no ``household_id``) → not subject to RLS, like ``refresh_tokens``; accessed
+    only in no-tenant mode with an explicit ``user_id`` filter as the compensating control.
+
+    **Two hashed secrets, deliberately split** (security review): ``device_id_hash`` is the
+    *stable identity* used to recognise the device for the session list, while
+    ``trust_token_hash`` is the *2FA-bypass authority* — a separate, rotating secret with its
+    own ``trusted_until`` window. Splitting them means theft of the identity token cannot
+    waive the second factor, and the trust secret rotates on every refresh (reuse-detected
+    like the refresh family). Both are SHA-256 hashes; the raw tokens live only on the client
+    (HttpOnly cookies on web, expo-secure-store on mobile).
+    """
+
+    __tablename__ = "devices"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    device_id_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    # NULL = the device has no 2FA-bypass trust. Rotates on every refresh while trusted.
+    trust_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    platform: Mapped[str] = mapped_column(String(16), nullable=False)
+    user_agent: Mapped[str | None] = mapped_column(String(400), nullable=True)
+    last_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    # Skip-2FA window end; NULL or <= now means the device must complete 2FA on next login.
+    trusted_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The user's "remember me" choice — drives cookie max-age + refresh TTL for this device.
+    remember: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Per-device refresh lifetime (short for non-remembered, long for remembered). Carried
+    # through rotation so a short session never silently inflates to the long TTL.
+    refresh_ttl_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Optional absolute cap for non-remembered sessions: refresh can slide but never past this.
+    family_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_devices_user_id", "user_id"),
+        CheckConstraint(
+            "platform IN ('web','ios','android')",
+            name="device_platform_valid",
+        ),
     )
 
 
@@ -316,6 +380,7 @@ class RecoveryCode(UUIDPrimaryKeyMixin, Base):
 
 __all__ = [
     "ActivationToken",
+    "Device",
     "Household",
     "Invitation",
     "Membership",

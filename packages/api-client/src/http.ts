@@ -14,6 +14,11 @@
 import type { ApiError, RefreshResponse } from '@homeops/types';
 
 import { AUTH_TRANSPORT_HEADER, getApiConfig } from './config';
+
+/** Cookie-less (bearer) device secret + platform headers — web uses HttpOnly cookies. */
+const DEVICE_ID_HEADER = 'X-Device-Id';
+const DEVICE_TRUST_HEADER = 'X-Device-Trust';
+const DEVICE_PLATFORM_HEADER = 'X-Device-Platform';
 import {
   clearAccessToken,
   getAccessToken,
@@ -70,6 +75,10 @@ export function refreshAccessToken(): Promise<string | null> {
         headers[AUTH_TRANSPORT_HEADER] = 'bearer';
         headers['Content-Type'] = 'application/json';
         body = JSON.stringify({ refresh_token: stored });
+        // A trusted device rotates its 2FA-bypass secret on every refresh — present the
+        // current one so the backend can verify + rotate it (feature plan §Device).
+        const trust = (await cfg.deviceTrustStore?.load()) ?? null;
+        if (trust) headers[DEVICE_TRUST_HEADER] = trust;
       } else {
         // Web: the HttpOnly cookie travels automatically; echo the double-submit CSRF token.
         const csrf = cfg.readCsrfToken();
@@ -96,6 +105,8 @@ export function refreshAccessToken(): Promise<string | null> {
       setAccessToken(data.access_token);
       // Rotation: persist the new refresh token (bearer only; web rotates the cookie).
       if (bearer && data.refresh_token) await cfg.refreshTokenStore?.save(data.refresh_token);
+      // Trust rotation: persist the rotated 2FA-bypass secret when the backend returns one.
+      if (bearer && data.device_trust) await cfg.deviceTrustStore?.save(data.device_trust);
       return data.access_token;
     } catch {
       clearAccessToken();
@@ -115,10 +126,39 @@ interface RequestOptions {
   skipAuthRetry?: boolean;
 }
 
+type ApiConfig = ReturnType<typeof getApiConfig>;
+
+/** Bearer-transport device headers, scoped to the endpoints that actually need each secret. */
+async function resolveDeviceHeaders(
+  path: string,
+  cfg: ApiConfig,
+): Promise<Record<string, string>> {
+  if (cfg.authTransport !== 'bearer') return {};
+  // Trust secret is only meaningful where a session is (re)established under 2FA.
+  const needsTrust = path.startsWith('/auth/login') || path.startsWith('/auth/totp/verify');
+  // Identity also tags the device-management calls so the backend can mark "this device".
+  const needsId = needsTrust || path.startsWith('/auth/devices');
+  const headers: Record<string, string> = {};
+  if (needsTrust && cfg.devicePlatform) headers[DEVICE_PLATFORM_HEADER] = cfg.devicePlatform;
+  if (needsId) {
+    const id = (await cfg.deviceIdStore?.load()) ?? null;
+    if (id) headers[DEVICE_ID_HEADER] = id;
+  }
+  if (needsTrust) {
+    const trust = (await cfg.deviceTrustStore?.load()) ?? null;
+    if (trust) headers[DEVICE_TRUST_HEADER] = trust;
+  }
+  return headers;
+}
+
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const cfg = getApiConfig();
+  // Bearer transport carries device secrets in headers (web uses HttpOnly cookies). The
+  // 2FA-bypass secret only goes to the endpoints that consume it (login/2FA-verify); the
+  // identity also tags the device-management calls so the backend can mark "this device".
+  const deviceHeaders = await resolveDeviceHeaders(path, cfg);
   const send = async (): Promise<Response> => {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...deviceHeaders };
     const token = getAccessToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
     if (options.body !== undefined) headers['Content-Type'] = 'application/json';

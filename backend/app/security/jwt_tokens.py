@@ -33,6 +33,11 @@ class AccessClaims:
 class MfaChallengeClaims:
     sub: str
     jti: str
+    # Device context carried across the 2FA step so step 2 can re-attach the session to the
+    # same device, honour the "remember me" TTL, and (re)grant trust (feature plan §Device).
+    device_id: str | None
+    remember: bool
+    grant_trust: bool
 
 
 class TokenError(Exception):
@@ -82,16 +87,28 @@ def decode_access_token(token: str, *, secret: str) -> AccessClaims:
     )
 
 
-def encode_mfa_challenge(*, user_id: uuid.UUID | str, secret: str, ttl_minutes: int) -> str:
+def encode_mfa_challenge(
+    *,
+    user_id: uuid.UUID | str,
+    secret: str,
+    ttl_minutes: int,
+    device_id: uuid.UUID | str | None = None,
+    remember: bool = False,
+    grant_trust: bool = False,
+) -> str:
     """Mint the short-lived challenge token carried between login step 1 and step 2."""
     now = datetime.now(UTC)
-    payload = {
+    payload: dict[str, object] = {
         "sub": str(user_id),
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=ttl_minutes)).timestamp()),
         "jti": uuid.uuid4().hex,
         "purpose": MFA_PURPOSE,
+        "remember": remember,
+        "grant_trust": grant_trust,
     }
+    if device_id is not None:
+        payload["device_id"] = str(device_id)
     return jwt.encode(payload, secret, algorithm=_ALGORITHM)
 
 
@@ -106,4 +123,11 @@ def decode_mfa_challenge(token: str, *, secret: str) -> MfaChallengeClaims:
     jti = payload.get("jti")
     if not isinstance(sub, str) or not isinstance(jti, str):
         raise TokenError("missing required claims")
-    return MfaChallengeClaims(sub=sub, jti=jti)
+    device_id = payload.get("device_id")
+    return MfaChallengeClaims(
+        sub=sub,
+        jti=jti,
+        device_id=device_id if isinstance(device_id, str) else None,
+        remember=bool(payload.get("remember", False)),
+        grant_trust=bool(payload.get("grant_trust", False)),
+    )

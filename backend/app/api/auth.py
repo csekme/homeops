@@ -15,6 +15,8 @@ from flask import after_this_request, current_app, request
 
 from app.api.schemas import (
     ActivateIn,
+    DeviceListOut,
+    DeviceRenameIn,
     ForgotPasswordIn,
     LoginIn,
     LoginOut,
@@ -28,9 +30,10 @@ from app.api.security import bearer_auth
 from app.extensions import limiter
 from app.security.csrf import CSRF_HEADER, verify_csrf
 from app.security.jwt_tokens import AccessClaims
-from app.services import auth_service
+from app.services import auth_service, device_service
 from app.services.exceptions import (
     AccountNotActivated,
+    DeviceNotFound,
     InvalidActivationToken,
     InvalidCredentials,
     InvalidPasswordResetToken,
@@ -42,59 +45,132 @@ auth_bp = APIBlueprint("auth", __name__, url_prefix="/api/auth")
 
 REFRESH_COOKIE = "refresh_token"
 CSRF_COOKIE = "csrf_token"
+# Device-identity + 2FA-bypass cookies (feature plan §Device). Both HttpOnly + path-scoped to
+# /api/auth (only sent to auth endpoints). The identity cookie recognises the device for the
+# session list; the trust cookie waives 2FA within its window and rotates on every refresh.
+DEVICE_ID_COOKIE = "device_id"
+DEVICE_TRUST_COOKIE = "device_trust"
 
 # Mobile clients can't hold an HttpOnly refresh cookie, so they opt into a bearer/body
 # token transport with this header (plan §3, phase0-mobile). When present the refresh token
 # travels in the JSON body instead of a Set-Cookie, and CSRF is skipped (no ambient cookie
 # auth to forge). Absent → the unchanged web cookie+CSRF path. Web never sends it.
 AUTH_TRANSPORT_HEADER = "X-Auth-Transport"
+# Mobile (cookie-less) carries the device secrets + platform in headers instead of cookies.
+DEVICE_ID_HEADER = "X-Device-Id"
+DEVICE_TRUST_HEADER = "X-Device-Trust"
+DEVICE_PLATFORM_HEADER = "X-Device-Platform"
 
 
 def _wants_bearer_transport() -> bool:
     return request.headers.get(AUTH_TRANSPORT_HEADER, "").strip().lower() == "bearer"
 
 
-def _attach_session_cookies(refresh_token: str, csrf_token: str) -> None:
-    cfg = current_app.config
-    max_age = cfg["REFRESH_TOKEN_TTL_DAYS"] * 86400
-    secure = cfg["AUTH_COOKIE_SECURE"]
-    refresh_path = cfg["AUTH_COOKIE_PATH"]
-    csrf_path = cfg["CSRF_COOKIE_PATH"]
+def _request_platform() -> str:
+    raw = (request.headers.get(DEVICE_PLATFORM_HEADER) or "").strip().lower()
+    return raw if raw in {"web", "ios", "android"} else "web"
 
-    @after_this_request
-    def _set(response):
-        # Refresh: HttpOnly so JS can't read it; scoped to the auth path so it is only
-        # ever sent to /api/auth/* (the browser attaches it to refresh/logout).
+
+def _read_device_id_token() -> str | None:
+    """The calling device's identity secret — web cookie or mobile header."""
+    return request.cookies.get(DEVICE_ID_COOKIE) or request.headers.get(DEVICE_ID_HEADER)
+
+
+def _read_device_trust_token() -> str | None:
+    """The calling device's 2FA-bypass secret — web cookie or mobile header."""
+    return request.cookies.get(DEVICE_TRUST_COOKIE) or request.headers.get(DEVICE_TRUST_HEADER)
+
+
+def _set_session_cookies(
+    response,
+    *,
+    refresh_token: str,
+    csrf_token: str,
+    remember: bool,
+    device_id_token: str | None,
+    trust_token: str | None,
+):
+    cfg = current_app.config
+    secure = cfg["AUTH_COOKIE_SECURE"]
+    auth_path = cfg["AUTH_COOKIE_PATH"]
+    csrf_path = cfg["CSRF_COOKIE_PATH"]
+    # Remember on → persistent cookies; off → browser-session cookies (no max-age). The DB
+    # refresh expiry is the real lifetime guarantee; the cookie scope is only UX.
+    session_max_age = cfg["REFRESH_TOKEN_TTL_DAYS"] * 86400 if remember else None
+
+    # Refresh: HttpOnly so JS can't read it; scoped to the auth path so it is only ever sent
+    # to /api/auth/* (the browser attaches it to refresh/logout).
+    response.set_cookie(
+        REFRESH_COOKIE,
+        refresh_token,
+        max_age=session_max_age,
+        httponly=True,
+        secure=secure,
+        samesite="Strict",
+        path=auth_path,
+    )
+    # CSRF: NOT HttpOnly and Path=/ so the SPA can read it anywhere and echo it in the
+    # X-CSRF-Token header (double-submit). Sent to /api/auth/refresh with the refresh cookie.
+    response.set_cookie(
+        CSRF_COOKIE,
+        csrf_token,
+        max_age=session_max_age,
+        httponly=False,
+        secure=secure,
+        samesite="Strict",
+        path=csrf_path,
+    )
+    if device_id_token is not None:
         response.set_cookie(
-            REFRESH_COOKIE,
-            refresh_token,
-            max_age=max_age,
+            DEVICE_ID_COOKIE,
+            device_id_token,
+            max_age=session_max_age,
             httponly=True,
             secure=secure,
             samesite="Strict",
-            path=refresh_path,
+            path=auth_path,
         )
-        # CSRF: NOT HttpOnly and Path=/ so the SPA can read it anywhere and echo it in
-        # the X-CSRF-Token header (double-submit). The browser still sends it to
-        # /api/auth/refresh alongside the refresh cookie.
+    if trust_token is not None:
+        # Trust has its own window (independent of the session cookie) — always persistent.
         response.set_cookie(
-            CSRF_COOKIE,
-            csrf_token,
-            max_age=max_age,
-            httponly=False,
+            DEVICE_TRUST_COOKIE,
+            trust_token,
+            max_age=cfg["DEVICE_TRUST_TTL_DAYS"] * 86400,
+            httponly=True,
             secure=secure,
             samesite="Strict",
-            path=csrf_path,
+            path=auth_path,
         )
-        return response
+    return response
+
+
+def _attach_session_cookies(
+    refresh_token: str,
+    csrf_token: str,
+    *,
+    remember: bool,
+    device_id_token: str | None = None,
+    trust_token: str | None = None,
+) -> None:
+    @after_this_request
+    def _set(response):
+        return _set_session_cookies(
+            response,
+            refresh_token=refresh_token,
+            csrf_token=csrf_token,
+            remember=remember,
+            device_id_token=device_id_token,
+            trust_token=trust_token,
+        )
 
 
 def issue_session_response(issued: auth_service.IssuedSession) -> dict[str, object]:
-    """Build the access-token + user body and deliver the refresh/CSRF tokens.
+    """Build the access-token + user body and deliver the refresh/CSRF/device tokens.
 
     Shared by ``/login`` and ``/totp/verify`` so both emit an identical session payload.
-    Web (default): refresh + CSRF go out as cookies. Mobile (``X-Auth-Transport: bearer``):
-    no Set-Cookie — the refresh token rides in the body for expo-secure-store.
+    Web (default): refresh + CSRF + device secrets go out as HttpOnly cookies. Mobile
+    (``X-Auth-Transport: bearer``): no Set-Cookie — the secrets ride in the body for
+    expo-secure-store.
     """
     body: dict[str, object] = {
         "access_token": issued.access_token,
@@ -109,18 +185,44 @@ def issue_session_response(issued: auth_service.IssuedSession) -> dict[str, obje
     }
     if _wants_bearer_transport():
         body["refresh_token"] = issued.refresh_token
+        if issued.device_id_token is not None:
+            body["device_id"] = issued.device_id_token
+        if issued.trust_token is not None:
+            body["device_trust"] = issued.trust_token
     else:
-        _attach_session_cookies(issued.refresh_token, issued.csrf_token)
+        # Re-set the identity cookie even for a known device so its max-age tracks the latest
+        # remember choice (the browser sent the value, so we can echo it when none was minted).
+        device_id_token = issued.device_id_token or request.cookies.get(DEVICE_ID_COOKIE)
+        _attach_session_cookies(
+            issued.refresh_token,
+            issued.csrf_token,
+            remember=issued.remember,
+            device_id_token=device_id_token,
+            trust_token=issued.trust_token,
+        )
     return body
 
 
 def _clear_session_cookies() -> None:
+    """Clear the session (refresh + CSRF) but KEEP the device identity/trust cookies, so an
+    explicit logout doesn't force the user to redo 2FA on a still-trusted device next login."""
     cfg = current_app.config
 
     @after_this_request
     def _clear(response):
         response.delete_cookie(REFRESH_COOKIE, path=cfg["AUTH_COOKIE_PATH"])
         response.delete_cookie(CSRF_COOKIE, path=cfg["CSRF_COOKIE_PATH"])
+        return response
+
+
+def _clear_device_cookies() -> None:
+    """Also forget the device identity + trust (used when revoking the *current* device)."""
+    cfg = current_app.config
+
+    @after_this_request
+    def _clear(response):
+        response.delete_cookie(DEVICE_ID_COOKIE, path=cfg["AUTH_COOKIE_PATH"])
+        response.delete_cookie(DEVICE_TRUST_COOKIE, path=cfg["AUTH_COOKIE_PATH"])
         return response
 
 
@@ -211,6 +313,11 @@ def login(json_data: dict) -> dict[str, object]:
             password=json_data["password"],
             ip=request.remote_addr,
             user_agent=request.headers.get("User-Agent"),
+            device_id_token=_read_device_id_token(),
+            trust_token=_read_device_trust_token(),
+            remember=json_data["remember_me"],
+            grant_trust=json_data["grant_trust"],
+            platform=_request_platform(),
         )
     except MfaRequired as exc:
         # Password OK but 2FA is on: hand back a challenge token (no session yet).
@@ -255,6 +362,7 @@ def refresh() -> dict[str, str]:
             raw_refresh=raw_refresh,
             ip=request.remote_addr,
             user_agent=request.headers.get("User-Agent"),
+            trust_token=_read_device_trust_token(),
         )
     except InvalidRefreshSession:
         if not bearer:
@@ -262,13 +370,24 @@ def refresh() -> dict[str, str]:
         abort(401, "Invalid refresh session.")
 
     if bearer:
-        return {  # nosec B105
+        out: dict[str, str] = {  # nosec B105
             "access_token": rotated.access_token,
             "token_type": "Bearer",
             "refresh_token": rotated.refresh_token,
         }
+        if rotated.trust_token is not None:
+            out["device_trust"] = rotated.trust_token
+        return out
 
-    _attach_session_cookies(rotated.refresh_token, rotated.csrf_token)
+    # Re-set the identity cookie (echo the incoming value) so its max-age tracks the device's
+    # remember choice; the trust cookie is re-set only when it actually rotated.
+    _attach_session_cookies(
+        rotated.refresh_token,
+        rotated.csrf_token,
+        remember=rotated.remember,
+        device_id_token=request.cookies.get(DEVICE_ID_COOKIE),
+        trust_token=rotated.trust_token,
+    )
     return {"access_token": rotated.access_token, "token_type": "Bearer"}  # nosec B105
 
 
@@ -323,3 +442,99 @@ def me() -> dict[str, object]:
             for m in view.memberships
         ],
     }
+
+
+# ── Device / session management (feature plan §Device registration) ──────────────────
+
+
+@auth_bp.get("/devices")
+@auth_bp.auth_required(bearer_auth)
+@auth_bp.output(DeviceListOut)
+@auth_bp.doc(
+    summary="List the user's active devices/sessions.",
+    operation_id="listDevices",
+    tags=["Auth"],
+)
+@limiter.limit("60 per minute")
+def list_devices() -> dict[str, object]:
+    claims = cast(AccessClaims, bearer_auth.current_user)
+    devices = device_service.list_devices(
+        user_id=claims.sub, current_device_id_token=_read_device_id_token()
+    )
+    return {
+        "devices": [
+            {
+                "id": d.id,
+                "name": d.name,
+                "platform": d.platform,
+                "last_ip": d.last_ip,
+                "last_seen_at": d.last_seen_at,
+                "created_at": d.created_at,
+                "trusted": d.trusted,
+                "current": d.current,
+            }
+            for d in devices
+        ]
+    }
+
+
+@auth_bp.patch("/devices/<device_id>")
+@auth_bp.auth_required(bearer_auth)
+@auth_bp.input(DeviceRenameIn)
+@auth_bp.output(EmptySchema, status_code=204)
+@auth_bp.doc(summary="Rename a device.", operation_id="renameDevice", tags=["Auth"])
+@limiter.limit("20 per minute")
+def rename_device(device_id: str, json_data: dict) -> tuple[str, int]:
+    claims = cast(AccessClaims, bearer_auth.current_user)
+    try:
+        device_service.rename_device(
+            user_id=claims.sub, device_id=device_id, name=json_data["name"]
+        )
+    except DeviceNotFound:
+        abort(404, "Device not found.")
+    except ValueError:
+        # An unparsable device id is just a non-existent device from the caller's view.
+        abort(404, "Device not found.")
+    return "", 204
+
+
+@auth_bp.delete("/devices/<device_id>")
+@auth_bp.auth_required(bearer_auth)
+@auth_bp.output(EmptySchema, status_code=204)
+@auth_bp.doc(
+    summary="Revoke (sign out) a single device.", operation_id="revokeDevice", tags=["Auth"]
+)
+@limiter.limit("20 per minute")
+def revoke_device(device_id: str) -> tuple[str, int]:
+    claims = cast(AccessClaims, bearer_auth.current_user)
+    current_token = _read_device_id_token()
+    try:
+        is_current = device_service.revoke_device(
+            user_id=claims.sub, device_id=device_id, current_device_id_token=current_token
+        )
+    except DeviceNotFound:
+        abort(404, "Device not found.")
+    except ValueError:
+        abort(404, "Device not found.")
+    if is_current:
+        # The caller just signed out the device they're on — clear its cookies too.
+        _clear_session_cookies()
+        _clear_device_cookies()
+    return "", 204
+
+
+@auth_bp.delete("/devices")
+@auth_bp.auth_required(bearer_auth)
+@auth_bp.output(EmptySchema, status_code=204)
+@auth_bp.doc(
+    summary="Revoke (sign out) all devices except the current one.",
+    operation_id="revokeOtherDevices",
+    tags=["Auth"],
+)
+@limiter.limit("20 per minute")
+def revoke_other_devices() -> tuple[str, int]:
+    claims = cast(AccessClaims, bearer_auth.current_user)
+    device_service.revoke_other_devices(
+        user_id=claims.sub, current_device_id_token=_read_device_id_token()
+    )
+    return "", 204

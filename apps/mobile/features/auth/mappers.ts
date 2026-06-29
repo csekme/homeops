@@ -17,7 +17,14 @@ import type {
 } from '@homeops/validation';
 
 export function toLoginRequest(values: LoginInput): LoginRequest {
-  return { email: values.email, password: values.password };
+  // One "remember me" toggle drives both backend concerns: a persistent session
+  // (remember_me) and skipping the next 2FA step on this device (grant_trust).
+  return {
+    email: values.email,
+    password: values.password,
+    remember_me: values.rememberMe,
+    grant_trust: values.rememberMe,
+  };
 }
 
 export function toRegisterRequest(values: RegisterInput, locale: string): RegisterRequest {

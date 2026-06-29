@@ -5,14 +5,8 @@
  * HomeOps backend API — household management SaaS (payments, documents, obligations).
  * OpenAPI spec version: 0.1.0
  */
+import type { DeviceOut } from "./deviceOut";
 
-export interface LoginIn {
-  email: string;
-  grant_trust?: boolean;
-  /**
-   * @minLength 1
-   * @maxLength 128
-   */
-  password: string;
-  remember_me?: boolean;
+export interface DeviceListOut {
+  devices?: DeviceOut[];
 }

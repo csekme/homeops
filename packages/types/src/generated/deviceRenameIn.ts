@@ -6,13 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface LoginIn {
-  email: string;
-  grant_trust?: boolean;
+export interface DeviceRenameIn {
   /**
    * @minLength 1
-   * @maxLength 128
+   * @maxLength 80
    */
-  password: string;
-  remember_me?: boolean;
+  name: string;
 }

@@ -6,6 +6,7 @@ import {
   clearAccessToken,
   configureApiClient,
   getGetMeQueryKey,
+  setOnSessionEstablished,
   setOnSessionExpired,
 } from '@homeops/api-client';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -36,6 +37,19 @@ setOnSessionExpired(({ wasAuthenticated }) => {
   clearAccessToken();
   queryClient.setQueryData(getGetMeQueryKey(), null);
   if (wasAuthenticated) toast.error(i18n.t('sessionExpired'));
+});
+
+// A fresh login / 2FA-verify minted a session. The expiry handler above may have cached a
+// stale `me = null` (still "fresh" for staleTime), which would make <RequireAuth> bounce the
+// user back to /login. If `me` is null, drop it so the guard refetches (Splash → app); if a
+// real user is cached (e.g. household switch), invalidate to refetch in the background.
+setOnSessionEstablished(() => {
+  const key = getGetMeQueryKey();
+  if (queryClient.getQueryData(key)) {
+    void queryClient.invalidateQueries({ queryKey: key });
+  } else {
+    queryClient.removeQueries({ queryKey: key });
+  }
 });
 
 createRoot(document.getElementById('root')!).render(

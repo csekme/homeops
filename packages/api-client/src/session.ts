@@ -12,11 +12,13 @@
 import { MutationCache } from '@tanstack/react-query';
 
 import { getApiConfig } from './config';
-import { clearAccessToken, setAccessToken } from './token-store';
+import { clearAccessToken, notifySessionEstablished, setAccessToken } from './token-store';
 
 interface MaybeSession {
   access_token?: string;
   refresh_token?: string;
+  device_id?: string;
+  device_trust?: string;
 }
 
 export function createSessionMutationCache(): MutationCache {
@@ -33,8 +35,16 @@ export function createSessionMutationCache(): MutationCache {
       const body = data as MaybeSession | undefined;
       if (body && typeof body === 'object' && body.access_token) {
         setAccessToken(body.access_token);
+        const cfg = getApiConfig();
         // Bearer transport (mobile): persist the rotated refresh token; web uses a cookie.
-        if (body.refresh_token) void getApiConfig().refreshTokenStore?.save(body.refresh_token);
+        if (body.refresh_token) void cfg.refreshTokenStore?.save(body.refresh_token);
+        // Device secrets (feature plan §Device): persist a newly minted identity and any
+        // granted/rotated trust so subsequent logins can skip 2FA. Web gets HttpOnly cookies.
+        if (body.device_id) void cfg.deviceIdStore?.save(body.device_id);
+        if (body.device_trust) void cfg.deviceTrustStore?.save(body.device_trust);
+        // A fresh session: let the host drop any stale logged-out `me` so the route guard
+        // refetches instead of bouncing the just-authenticated user back to /login.
+        notifySessionEstablished();
       }
     },
   });

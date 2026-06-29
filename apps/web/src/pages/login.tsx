@@ -2,9 +2,12 @@ import { Loader2Icon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { Controller } from 'react-hook-form';
+
 import { AuthShell } from '@/components/auth-shell';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { safeRedirect } from '@/features/auth/redirect';
@@ -70,6 +73,25 @@ export default function LoginPage() {
             />
             <FieldError errors={[errors.password]} />
           </Field>
+
+          <Controller
+            control={form.control}
+            name="rememberMe"
+            render={({ field }) => (
+              <Field orientation="horizontal">
+                <Checkbox
+                  id="rememberMe"
+                  checked={field.value}
+                  onCheckedChange={(checked) => field.onChange(checked === true)}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                />
+                <FieldLabel htmlFor="rememberMe" className="font-normal">
+                  {t('login.rememberMe')}
+                </FieldLabel>
+              </Field>
+            )}
+          />
 
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending ? <Loader2Icon className="size-4 animate-spin" /> : null}

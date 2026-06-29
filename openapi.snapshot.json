@@ -33,6 +33,65 @@
         ],
         "type": "object"
       },
+      "DeviceListOut": {
+        "additionalProperties": false,
+        "properties": {
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/DeviceOut"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "DeviceOut": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_ip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_seen_at": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "trusted": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "DeviceRenameIn": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "ForgotPasswordIn": {
         "additionalProperties": false,
         "properties": {
@@ -251,10 +310,18 @@
             "format": "email",
             "type": "string"
           },
+          "grant_trust": {
+            "default": false,
+            "type": "boolean"
+          },
           "password": {
             "maxLength": 128,
             "minLength": 1,
             "type": "string"
+          },
+          "remember_me": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [
@@ -270,6 +337,12 @@
             "type": "string"
           },
           "challenge_token": {
+            "type": "string"
+          },
+          "device_id": {
+            "type": "string"
+          },
+          "device_trust": {
             "type": "string"
           },
           "mfa_required": {
@@ -431,6 +504,9 @@
         "additionalProperties": false,
         "properties": {
           "access_token": {
+            "type": "string"
+          },
+          "device_trust": {
             "type": "string"
           },
           "refresh_token": {
@@ -683,6 +759,186 @@
           }
         },
         "summary": "Activate an account with the emailed token.",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/devices": {
+      "delete": {
+        "operationId": "revokeOtherDevices",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Revoke (sign out) all devices except the current one.",
+        "tags": [
+          "Auth"
+        ]
+      },
+      "get": {
+        "operationId": "listDevices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceListOut"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List the user's active devices/sessions.",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/devices/{device_id}": {
+      "delete": {
+        "operationId": "revokeDevice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Revoke (sign out) a single device.",
+        "tags": [
+          "Auth"
+        ]
+      },
+      "patch": {
+        "operationId": "renameDevice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceRenameIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Rename a device.",
         "tags": [
           "Auth"
         ]

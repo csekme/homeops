@@ -49,6 +49,17 @@ def _new_raw_token() -> str:
     return secrets.token_urlsafe(_TOKEN_BYTES)
 
 
+def find(session: Session, raw_token: str) -> RefreshToken | None:
+    """Look up a refresh-token record by its hash without mutating it.
+
+    Lets the caller resolve per-device policy (TTL, absolute cap) from the family's
+    ``device_id`` *before* rotating, keeping this module ignorant of the devices table.
+    """
+    return session.execute(
+        select(RefreshToken).where(RefreshToken.token_hash == hash_token(raw_token))
+    ).scalar_one_or_none()
+
+
 def issue(
     session: Session,
     *,
@@ -59,17 +70,26 @@ def issue(
     family_id: uuid.UUID | None = None,
     prev_id: uuid.UUID | None = None,
     household_id: uuid.UUID | str | None = None,
+    device_id: uuid.UUID | None = None,
+    family_expires_at: datetime | None = None,
 ) -> IssuedRefreshToken:
     raw = _new_raw_token()
+    expires_at = datetime.now(UTC) + timedelta(days=ttl_days)
+    # A non-remembered session carries an absolute cap so refresh can slide the window but
+    # never extend the session past the original short lifetime (feature plan §remember me).
+    if family_expires_at is not None:
+        cap = _as_utc(family_expires_at)
+        expires_at = min(expires_at, cap)
     record = RefreshToken(
         user_id=user_id,
         # The active household rides along so refresh() re-mints into the same tenant the
         # user switched to (feature plan §Backend). Rotation carries it forward.
         household_id=uuid.UUID(str(household_id)) if household_id is not None else None,
+        device_id=device_id,
         family_id=family_id or uuid.uuid4(),
         prev_id=prev_id,
         token_hash=hash_token(raw),
-        expires_at=datetime.now(UTC) + timedelta(days=ttl_days),
+        expires_at=expires_at,
         ip=ip,
         user_agent=(user_agent or "")[:400] or None,
     )
@@ -102,6 +122,15 @@ def revoke_all_for_user(session: Session, user_id: uuid.UUID | str) -> None:
     )
 
 
+def revoke_for_device(session: Session, device_id: uuid.UUID) -> None:
+    """Revoke every live refresh family bound to a device (per-device sign-out)."""
+    session.execute(
+        update(RefreshToken)
+        .where(RefreshToken.device_id == device_id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=datetime.now(UTC))
+    )
+
+
 def rotate(
     session: Session,
     *,
@@ -109,15 +138,15 @@ def rotate(
     ttl_days: int,
     ip: str | None = None,
     user_agent: str | None = None,
+    family_expires_at: datetime | None = None,
 ) -> IssuedRefreshToken:
     """Validate + consume the presented token, returning a freshly issued successor.
 
     Raises ``RefreshTokenReuse`` (after revoking the whole family) on replay, or
-    ``InvalidRefreshToken`` if the token is unknown / expired.
+    ``InvalidRefreshToken`` if the token is unknown / expired. The successor inherits the
+    family's ``device_id`` and is bounded by ``family_expires_at`` (the per-device cap).
     """
-    record = session.execute(
-        select(RefreshToken).where(RefreshToken.token_hash == hash_token(raw_token))
-    ).scalar_one_or_none()
+    record = find(session, raw_token)
 
     if record is None:
         raise InvalidRefreshToken("unknown token")
@@ -146,6 +175,8 @@ def rotate(
         family_id=record.family_id,
         prev_id=record.id,
         household_id=record.household_id,
+        device_id=record.device_id,
+        family_expires_at=family_expires_at,
     )
 
 

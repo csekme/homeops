@@ -84,3 +84,23 @@ export function setOnSessionExpired(handler: SessionExpiredHandler | null): void
 export function notifySessionExpired(info: SessionExpiredInfo): void {
   sessionExpiredHandler?.(info);
 }
+
+/* ---------------------------------------------------------------------------------- */
+/* Session-established seam                                                             */
+/* The counterpart to session-expired: fired when a login / 2FA-verify / switch mints  */
+/* a fresh access token. The host clears the cached `me` so a stale logged-out value    */
+/* (cached by the expiry handler) can't make the route guard bounce a just-logged-in    */
+/* user straight back to /login.                                                        */
+/* ---------------------------------------------------------------------------------- */
+
+type SessionEstablishedHandler = () => void;
+
+let sessionEstablishedHandler: SessionEstablishedHandler | null = null;
+
+export function setOnSessionEstablished(handler: SessionEstablishedHandler | null): void {
+  sessionEstablishedHandler = handler;
+}
+
+export function notifySessionEstablished(): void {
+  sessionEstablishedHandler?.();
+}

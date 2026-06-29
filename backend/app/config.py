@@ -51,6 +51,12 @@ class Config:
         self.JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", _DEV_JWT_SECRET)
         self.ACCESS_TOKEN_TTL_MINUTES = _int("ACCESS_TOKEN_TTL_MINUTES", 15)
         self.REFRESH_TOKEN_TTL_DAYS = _int("REFRESH_TOKEN_TTL_DAYS", 30)
+        # "Remember me" off → a short-lived session (browser-session cookie + short refresh
+        # TTL); the DB expiry is the real enforcement, the session cookie only UX
+        # (feature plan §Device registration + remember me).
+        self.SHORT_REFRESH_TTL_DAYS = _int("SHORT_REFRESH_TTL_DAYS", 1)
+        # How long a remembered, 2FA-passed device may skip the TOTP step on a fresh login.
+        self.DEVICE_TRUST_TTL_DAYS = _int("DEVICE_TRUST_TTL_DAYS", 30)
         # 2FA login challenge token — short-lived bridge between the password check and the
         # TOTP/backup-code step (feature plan §Backend.7).
         self.MFA_CHALLENGE_TTL_MINUTES = _int("MFA_CHALLENGE_TTL_MINUTES", 5)

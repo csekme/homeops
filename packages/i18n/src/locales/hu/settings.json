@@ -11,6 +11,27 @@
     "disableButton": "Kikapcsolás",
     "regenerateButton": "Tartalék kódok újragenerálása"
   },
+  "devices": {
+    "title": "Eszközök",
+    "description": "Eszközök és böngészők, ahol be vagy jelentkezve. Jelentkeztesd ki azokat, amelyeket nem ismersz fel.",
+    "empty": "Nincs aktív eszköz.",
+    "thisDevice": "Ez az eszköz",
+    "trusted": "Megbízható",
+    "lastSeen": "Utoljára aktív: {{time}}",
+    "rename": "Átnevezés",
+    "renameTitle": "Eszköz átnevezése",
+    "nameLabel": "Eszköz neve",
+    "save": "Mentés",
+    "cancel": "Mégse",
+    "signOut": "Kijelentkeztetés",
+    "signOutTitle": "Kijelentkezteted ezt az eszközt?",
+    "signOutDescription": "Az eszköznek újra be kell majd jelentkeznie.",
+    "signOutCurrentDescription": "Ezt az eszközt használod most — azonnal kijelentkezel.",
+    "confirmSignOut": "Kijelentkeztetés",
+    "signOutOthers": "Összes többi eszköz kijelentkeztetése",
+    "signOutOthersTitle": "Kijelentkezteted az összes többi eszközt?",
+    "signOutOthersDescription": "Ezen az eszközön kívül mindegyiknek újra be kell majd jelentkeznie."
+  },
   "twofactor": {
     "setup": {
       "title": "Hitelesítő alkalmazás beállítása",

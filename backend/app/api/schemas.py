@@ -43,6 +43,12 @@ class ResetPasswordIn(Schema):
 class LoginIn(Schema):
     email = Email(required=True)
     password = String(required=True, validate=Length(min=1, max=128))
+    # "Remember me on this device": persistent session (long refresh TTL + persistent cookie).
+    # The web client also sets ``grant_trust`` from the same checkbox.
+    remember_me = Boolean(load_default=False)
+    # Opt into skipping the 2FA step on this device for the trust window. Honoured only when
+    # 2FA is enabled; ignored otherwise. Separate field so the two concerns can diverge later.
+    grant_trust = Boolean(load_default=False)
 
 
 class MembershipOut(Schema):
@@ -73,6 +79,11 @@ class LoginOut(Schema):
     # Mobile (bearer transport) only: the refresh token travels in the body instead of an
     # HttpOnly cookie, for storage in expo-secure-store. Omitted on the web (cookie) path.
     refresh_token = String()
+    # Mobile (bearer transport) only: device-identity + 2FA-bypass secrets to persist in
+    # expo-secure-store. Web receives these as HttpOnly cookies instead. ``device_id`` is set
+    # only when a new device is registered; ``device_trust`` only when trust is granted.
+    device_id = String()
+    device_trust = String()
 
 
 class RefreshOut(Schema):
@@ -80,6 +91,9 @@ class RefreshOut(Schema):
     token_type = String()
     # Mobile (bearer transport) only — see LoginOut.refresh_token. Omitted on the web path.
     refresh_token = String()
+    # Mobile (bearer transport) only: the rotated 2FA-bypass secret, set when a trusted device
+    # rotated its trust on this refresh. The client must replace its stored value.
+    device_trust = String()
 
 
 # ── Two-factor authentication (TOTP) ────────────────────────────────────────────────
@@ -217,3 +231,27 @@ class MyInvitationOut(Schema):
 
 class MyInvitationListOut(Schema):
     invitations = List(Nested(MyInvitationOut))
+
+
+# ── Device / session management (feature plan §Device registration) ──────────────────
+
+
+class DeviceOut(Schema):
+    id = String()
+    name = String()
+    platform = String()
+    last_ip = String(allow_none=True)
+    last_seen_at = String()
+    created_at = String()
+    # Whether this device may currently skip the 2FA step (a live trust window).
+    trusted = Boolean()
+    # Whether this is the device making the request (so the UI can label it "this device").
+    current = Boolean()
+
+
+class DeviceListOut(Schema):
+    devices = List(Nested(DeviceOut))
+
+
+class DeviceRenameIn(Schema):
+    name = String(required=True, validate=Length(min=1, max=80))

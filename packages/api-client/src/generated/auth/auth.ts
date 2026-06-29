@@ -18,6 +18,8 @@ import type {
 
 import type {
   ActivateIn,
+  DeviceListOut,
+  DeviceRenameIn,
   ForgotPasswordIn,
   HTTPError,
   LoginIn,
@@ -115,6 +117,304 @@ export const useActivate = <
   TContext
 > => {
   const mutationOptions = getActivateMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary Revoke (sign out) all devices except the current one.
+ */
+export const revokeOtherDevices = () => {
+  return customInstance<void>({ url: `/api/auth/devices`, method: "DELETE" });
+};
+
+export const getRevokeOtherDevicesMutationOptions = <
+  TError = HTTPError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeOtherDevices>>,
+    TError,
+    void,
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof revokeOtherDevices>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["revokeOtherDevices"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof revokeOtherDevices>>,
+    void
+  > = () => {
+    return revokeOtherDevices();
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RevokeOtherDevicesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof revokeOtherDevices>>
+>;
+
+export type RevokeOtherDevicesMutationError = HTTPError;
+
+/**
+ * @summary Revoke (sign out) all devices except the current one.
+ */
+export const useRevokeOtherDevices = <
+  TError = HTTPError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeOtherDevices>>,
+    TError,
+    void,
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof revokeOtherDevices>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationOptions = getRevokeOtherDevicesMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary List the user's active devices/sessions.
+ */
+export const listDevices = (signal?: AbortSignal) => {
+  return customInstance<DeviceListOut>({
+    url: `/api/auth/devices`,
+    method: "GET",
+    signal,
+  });
+};
+
+export const getListDevicesQueryKey = () => {
+  return [`/api/auth/devices`] as const;
+};
+
+export const getListDevicesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDevices>>,
+  TError = HTTPError,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDevices>>,
+    TError,
+    TData
+  >;
+}) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDevicesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listDevices>>> = ({
+    signal,
+  }) => listDevices(signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDevices>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDevicesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDevices>>
+>;
+export type ListDevicesQueryError = HTTPError;
+
+/**
+ * @summary List the user's active devices/sessions.
+ */
+
+export function useListDevices<
+  TData = Awaited<ReturnType<typeof listDevices>>,
+  TError = HTTPError,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDevices>>,
+    TError,
+    TData
+  >;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDevicesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Revoke (sign out) a single device.
+ */
+export const revokeDevice = (deviceId: string) => {
+  return customInstance<void>({
+    url: `/api/auth/devices/${deviceId}`,
+    method: "DELETE",
+  });
+};
+
+export const getRevokeDeviceMutationOptions = <
+  TError = HTTPError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeDevice>>,
+    TError,
+    { deviceId: string },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof revokeDevice>>,
+  TError,
+  { deviceId: string },
+  TContext
+> => {
+  const mutationKey = ["revokeDevice"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof revokeDevice>>,
+    { deviceId: string }
+  > = (props) => {
+    const { deviceId } = props ?? {};
+
+    return revokeDevice(deviceId);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RevokeDeviceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof revokeDevice>>
+>;
+
+export type RevokeDeviceMutationError = HTTPError;
+
+/**
+ * @summary Revoke (sign out) a single device.
+ */
+export const useRevokeDevice = <
+  TError = HTTPError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeDevice>>,
+    TError,
+    { deviceId: string },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof revokeDevice>>,
+  TError,
+  { deviceId: string },
+  TContext
+> => {
+  const mutationOptions = getRevokeDeviceMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * @summary Rename a device.
+ */
+export const renameDevice = (
+  deviceId: string,
+  deviceRenameIn: DeviceRenameIn,
+) => {
+  return customInstance<void>({
+    url: `/api/auth/devices/${deviceId}`,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    data: deviceRenameIn,
+  });
+};
+
+export const getRenameDeviceMutationOptions = <
+  TError = HTTPError | ValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof renameDevice>>,
+    TError,
+    { deviceId: string; data: DeviceRenameIn },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof renameDevice>>,
+  TError,
+  { deviceId: string; data: DeviceRenameIn },
+  TContext
+> => {
+  const mutationKey = ["renameDevice"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof renameDevice>>,
+    { deviceId: string; data: DeviceRenameIn }
+  > = (props) => {
+    const { deviceId, data } = props ?? {};
+
+    return renameDevice(deviceId, data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RenameDeviceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof renameDevice>>
+>;
+export type RenameDeviceMutationBody = DeviceRenameIn;
+export type RenameDeviceMutationError = HTTPError | ValidationError;
+
+/**
+ * @summary Rename a device.
+ */
+export const useRenameDevice = <
+  TError = HTTPError | ValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof renameDevice>>,
+    TError,
+    { deviceId: string; data: DeviceRenameIn },
+    TContext
+  >;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof renameDevice>>,
+  TError,
+  { deviceId: string; data: DeviceRenameIn },
+  TContext
+> => {
+  const mutationOptions = getRenameDeviceMutationOptions(options);
 
   return useMutation(mutationOptions);
 };

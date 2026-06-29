@@ -22,7 +22,7 @@ export function useLoginForm(redirectTo = '/'): UseLoginForm {
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: '', password: '', rememberMe: false },
   });
 
   const onSubmit = form.handleSubmit((values) => {

@@ -20,7 +20,16 @@ export interface RefreshTokenStore {
   clear(): Promise<void> | void;
 }
 
+/**
+ * Persistence for a device secret on a bearer-transport client (feature plan §Device).
+ * Same shape as the refresh store; web leaves these `null` because the equivalent secrets
+ * ride as HttpOnly cookies the browser manages for us.
+ */
+export type DeviceSecretStore = RefreshTokenStore;
+
 export type AuthTransport = 'cookie' | 'bearer';
+
+export type DevicePlatform = 'web' | 'ios' | 'android';
 
 export interface ApiClientConfig {
   /** API origin/prefix, e.g. `/api` (web) or `https://homeops.localhost/api` (mobile). */
@@ -33,6 +42,12 @@ export interface ApiClientConfig {
   readCsrfToken: () => string | null;
   /** Refresh-token persistence for bearer transport. `null` ⇒ cookie transport (web). */
   refreshTokenStore: RefreshTokenStore | null;
+  /** Device-identity secret store (bearer transport). `null` ⇒ web (HttpOnly cookie). */
+  deviceIdStore: DeviceSecretStore | null;
+  /** Device 2FA-bypass secret store (bearer transport). `null` ⇒ web (HttpOnly cookie). */
+  deviceTrustStore: DeviceSecretStore | null;
+  /** Reported to the backend as `X-Device-Platform` (bearer transport). `null` ⇒ web. */
+  devicePlatform: DevicePlatform | null;
 }
 
 /** Header a bearer-transport client sends so the backend skips Set-Cookie + CSRF. */
@@ -57,6 +72,9 @@ const config: ApiClientConfig = {
   authTransport: 'cookie',
   readCsrfToken: readCsrfCookie,
   refreshTokenStore: null,
+  deviceIdStore: null,
+  deviceTrustStore: null,
+  devicePlatform: null,
 };
 
 /** Override any subset of the config (host app, once at boot). */

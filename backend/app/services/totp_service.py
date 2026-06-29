@@ -19,6 +19,7 @@ from app.db.models import RecoveryCode, UserTotp
 from app.db.rls import session_scope
 from app.extensions import get_passwords, get_secret_cipher
 from app.logging_config import get_logger
+from app.repositories import devices as devices_repo
 from app.repositories import users as user_repo
 from app.security import recovery_codes, totp
 from app.security.secrets import SealedSecret
@@ -156,6 +157,9 @@ def disable(*, user_id: uuid.UUID | str, password: str) -> None:
         row = _require_with_password(session, user_id, password)
         session.execute(delete(RecoveryCode).where(RecoveryCode.user_id == row.user_id))
         session.delete(row)
+        # Turning 2FA off invalidates every device's 2FA-bypass trust — the trust window only
+        # ever meant "skip the second factor", which no longer exists (feature plan §Device).
+        devices_repo.revoke_all_trust_for_user(session, row.user_id)
         log.info("totp.disabled", user_id=str(row.user_id))
 
 

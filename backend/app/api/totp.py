@@ -14,7 +14,7 @@ from apiflask import APIBlueprint, abort
 from apiflask.schemas import EmptySchema
 from flask import request
 
-from app.api.auth import issue_session_response
+from app.api.auth import _request_platform, issue_session_response
 from app.api.schemas import (
     LoginOut,
     RecoveryCodesOut,
@@ -153,6 +153,7 @@ def verify(json_data: dict) -> dict[str, object]:
             code=json_data["code"],
             ip=request.remote_addr,
             user_agent=request.headers.get("User-Agent"),
+            platform=_request_platform(),
         )
     except (TokenError, InvalidCredentials, InvalidTotpCode, TotpReuse, TotpNotConfigured):
         # Generic for all step-2 failures (no enumeration; expired challenge → re-login).

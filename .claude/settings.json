@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(APP_ENV=testing uv run python -c ' *)",
+      "Bash(pnpm codegen *)",
+      "Bash(pnpm --filter @homeops/api-client exec tsc --noEmit)",
+      "Bash(npx tsc *)",
+      "Bash(npx shadcn@latest info --json)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('installed:', d.get\\('installedComponents'\\) or d.get\\('components'\\)\\)\")"
+    ]
+  }
+}

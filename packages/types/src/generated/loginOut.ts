@@ -10,6 +10,8 @@ import type { UserOut } from "./userOut";
 export interface LoginOut {
   access_token?: string;
   challenge_token?: string;
+  device_id?: string;
+  device_trust?: string;
   mfa_required?: boolean;
   refresh_token?: string;
   token_type?: string;

@@ -55,6 +55,10 @@ class TotpReuse(AuthError):
     """A TOTP code for an already-consumed time-step was replayed (replay protection)."""
 
 
+class DeviceNotFound(AuthError):
+    """The device does not exist or belongs to another user (→ 404, no existence leak)."""
+
+
 # ── Household / membership / invitation errors (feature plan §Backend) ────────────────
 
 

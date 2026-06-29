@@ -18,18 +18,20 @@ from flask import current_app
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import ActivationToken, User
+from app.db.models import ActivationToken, Device, User
 from app.db.rls import session_scope
 from app.domain.enums import UserStatus
 from app.extensions import get_email_sender, get_passwords
 from app.logging_config import get_logger
 from app.notifications.email.messages import build_activation_email, build_password_reset_email
+from app.repositories import devices as devices_repo
 from app.repositories import households as households_repo
 from app.repositories import memberships as membership_repo
 from app.repositories import password_reset_tokens as reset_repo
 from app.repositories import users as user_repo
 from app.security import refresh_tokens
 from app.security.csrf import issue_csrf_token
+from app.security.device_naming import device_name
 from app.security.jwt_tokens import decode_mfa_challenge, encode_access_token, encode_mfa_challenge
 from app.services import totp_service
 from app.services.exceptions import (
@@ -50,6 +52,14 @@ class IssuedSession:
     refresh_token: str
     csrf_token: str
     user: User
+    # Drives the refresh/CSRF cookie max-age (persistent vs browser-session).
+    remember: bool
+    # The raw device-identity token — set ONLY when a new device was minted (the client
+    # stores it; an existing device already holds it). None otherwise.
+    device_id_token: str | None
+    # The raw 2FA-bypass secret — set ONLY when trust was granted on this login. None
+    # otherwise (no trust, or 2FA off).
+    trust_token: str | None
 
 
 @dataclass(frozen=True)
@@ -57,6 +67,10 @@ class TokenRefresh:
     access_token: str
     refresh_token: str
     csrf_token: str
+    remember: bool
+    # The rotated 2FA-bypass secret — set only when a trusted device rotated its trust on
+    # this refresh, so the client must replace its stored value. None otherwise.
+    trust_token: str | None
 
 
 def _hash(raw: str) -> str:
@@ -186,18 +200,34 @@ def reset_password(*, raw_token: str, new_password: str) -> None:
         token.used_at = datetime.now(UTC)
         user_repo.set_password_hash(session, user, password_hash=get_passwords().hash(new_password))
         refresh_tokens.revoke_all_for_user(session, user.id)
+        # A reset implies possible compromise: wipe every device's 2FA-bypass trust too, so a
+        # surviving trust window can't keep skipping the second factor (feature plan §Device).
+        devices_repo.revoke_all_trust_for_user(session, user.id)
         log.info("password_reset.completed", user_id=str(user.id))
 
 
-def login(*, email: str, password: str, ip: str | None, user_agent: str | None) -> IssuedSession:
+def login(
+    *,
+    email: str,
+    password: str,
+    ip: str | None,
+    user_agent: str | None,
+    device_id_token: str | None = None,
+    trust_token: str | None = None,
+    remember: bool = False,
+    grant_trust: bool = False,
+    platform: str = "web",
+) -> IssuedSession:
     """Verify credentials + ACTIVE status, then mint the token pair (plan §3.5c).
 
     Non-ACTIVE accounts are rejected (plan §3.5b → 403). Both the unknown-user and
     bad-password paths raise the same generic error (plan §3.5f).
 
-    When the account has 2FA enabled the password check is *not* enough: instead of a
-    session we raise ``MfaRequired`` carrying a short-lived challenge token; the client
-    completes login via ``complete_login`` (feature plan §Backend.7).
+    2FA branch (feature plan §Backend.7 + §Device): when the account has 2FA enabled the
+    password check is not enough — *unless* this is a recognised, still-trusted device
+    presenting a matching trust secret, in which case the second factor is skipped. Otherwise
+    we raise ``MfaRequired`` carrying a challenge token that remembers the device + the
+    remember/grant_trust choices, so step 2 can re-attach and (re)grant trust.
     """
     email = email.strip().lower()
     cfg = current_app.config
@@ -219,26 +249,48 @@ def login(*, email: str, password: str, ip: str | None, user_agent: str | None) 
         if passwords.needs_rehash(user.password_hash):
             user.password_hash = passwords.hash(password)
 
-        if totp_service.is_enabled(session, user.id):
+        device = _resolve_device(session, user, device_id_token)
+        totp_enabled = totp_service.is_enabled(session, user.id)
+
+        if totp_enabled and not _is_trusted(device, trust_token):
             raise MfaRequired(
                 encode_mfa_challenge(
                     user_id=user.id,
                     secret=cfg["JWT_SECRET_KEY"],
                     ttl_minutes=cfg["MFA_CHALLENGE_TTL_MINUTES"],
+                    device_id=device.id if device is not None else None,
+                    remember=remember,
+                    grant_trust=grant_trust,
                 )
             )
 
-        return _issue_session(session, user, ip=ip, user_agent=user_agent)
+        return _issue_session(
+            session,
+            user,
+            ip=ip,
+            user_agent=user_agent,
+            device=device,
+            remember=remember,
+            grant_trust=grant_trust,
+            platform=platform,
+            totp_enabled=totp_enabled,
+        )
 
 
 def complete_login(
-    *, challenge_token: str, code: str, ip: str | None, user_agent: str | None
+    *,
+    challenge_token: str,
+    code: str,
+    ip: str | None,
+    user_agent: str | None,
+    platform: str = "web",
 ) -> IssuedSession:
     """Login step 2: validate the challenge token + TOTP/backup code, then issue a session.
 
     May raise ``TokenError`` (bad/expired challenge), ``InvalidTotpCode``/``TotpReuse``
     (bad code), or ``TotpNotConfigured``. Verification and session issuance share one
     transaction so the consumed step / used backup code commit atomically with the session.
+    The device + remember/grant_trust choices ride in on the challenge claims.
     """
     cfg = current_app.config
     claims = decode_mfa_challenge(challenge_token, secret=cfg["JWT_SECRET_KEY"])
@@ -247,21 +299,60 @@ def complete_login(
         if user is None or user.status != UserStatus.ACTIVE.value:
             raise InvalidCredentials("invalid credentials")
         totp_service.verify_challenge(session, user_id=user.id, code=code)
-        return _issue_session(session, user, ip=ip, user_agent=user_agent)
+
+        device = None
+        if claims.device_id is not None:
+            device = devices_repo.get_for_user(
+                session, user_id=user.id, device_id=claims.device_id
+            )
+            if device is not None and device.revoked_at is not None:
+                device = None
+
+        return _issue_session(
+            session,
+            user,
+            ip=ip,
+            user_agent=user_agent,
+            device=device,
+            remember=claims.remember,
+            grant_trust=claims.grant_trust,
+            platform=platform,
+            totp_enabled=True,
+        )
 
 
-def refresh(*, raw_refresh: str, ip: str | None, user_agent: str | None) -> TokenRefresh:
-    """Rotate the refresh token; on replay, raise after the family is revoked (plan §3.5d)."""
+def refresh(
+    *, raw_refresh: str, ip: str | None, user_agent: str | None, trust_token: str | None = None
+) -> TokenRefresh:
+    """Rotate the refresh token; on replay, raise after the family is revoked (plan §3.5d).
+
+    The new token inherits the family's per-device TTL + absolute cap (so a short session
+    never inflates to the long TTL). A still-trusted device also rotates its 2FA-bypass
+    secret here, reusing the family's reuse-detection guarantees; a mismatched trust token is
+    treated as theft and the device's trust is cleared.
+    """
     cfg = current_app.config
     reuse: refresh_tokens.RefreshTokenReuse | None = None
     with session_scope(bypass_tenant=True) as session:
+        # Resolve the device policy BEFORE consuming the token, so the successor's lifetime
+        # comes from the device, not the global default (feature plan §remember me TTL fix).
+        record = refresh_tokens.find(session, raw_refresh)
+        device = (
+            devices_repo.get_by_id(session, record.device_id)
+            if record is not None and record.device_id is not None
+            else None
+        )
+        ttl_days = device.refresh_ttl_days if device is not None else cfg["REFRESH_TOKEN_TTL_DAYS"]
+        family_cap = device.family_expires_at if device is not None else None
+
         try:
             issued = refresh_tokens.rotate(
                 session,
                 raw_token=raw_refresh,
-                ttl_days=cfg["REFRESH_TOKEN_TTL_DAYS"],
+                ttl_days=ttl_days,
                 ip=ip,
                 user_agent=user_agent,
+                family_expires_at=family_cap,
             )
         except refresh_tokens.RefreshTokenReuse as exc:
             reuse = exc  # handled below in a fresh, committed transaction
@@ -288,10 +379,20 @@ def refresh(*, raw_refresh: str, ip: str | None, user_agent: str | None) -> Toke
                 household_id=household_id,
                 role=role,
             )
+
+            remember = device.remember if device is not None else False
+            rotated_trust = None
+            if device is not None:
+                rotated_trust = _rotate_device_trust(device, trust_token, user_id=user.id)
+                device.last_seen_at = datetime.now(UTC)
+                device.last_ip = ip
+
             return TokenRefresh(
                 access_token=access,
                 refresh_token=issued.raw_token,
                 csrf_token=issue_csrf_token(),
+                remember=remember,
+                trust_token=rotated_trust,
             )
 
     # Reuse detected: revoke the whole family in its own committed transaction, then 401.
@@ -353,8 +454,74 @@ def get_me(*, user_id: uuid.UUID | str) -> MeView | None:
         )
 
 
+def _resolve_device(
+    session: Session, user: User, device_id_token: str | None
+) -> Device | None:
+    """Recognise the calling device from its identity token, or None.
+
+    Returns None for a missing/unknown token, a revoked device, or — critically — a device
+    that belongs to a *different* user (shared computer: user B must never inherit user A's
+    device or trust). Callers treat None as "fresh device".
+    """
+    if not device_id_token:
+        return None
+    device = devices_repo.get_by_device_hash(session, _hash(device_id_token))
+    if device is None or device.revoked_at is not None or device.user_id != user.id:
+        return None
+    return device
+
+
+def _is_trusted(device: Device | None, trust_token: str | None) -> bool:
+    """Whether 2FA may be skipped: a live trust window AND a matching trust secret."""
+    if device is None or not trust_token or device.trust_token_hash is None:
+        return False
+    if device.trusted_until is None or _as_utc(device.trusted_until) <= datetime.now(UTC):
+        return False
+    return secrets.compare_digest(device.trust_token_hash, _hash(trust_token))
+
+
+def _rotate_device_trust(
+    device: Device, trust_token: str | None, *, user_id: uuid.UUID
+) -> str | None:
+    """Rotate the device's 2FA-bypass secret on refresh, returning the new raw token.
+
+    No-op (returns None) when the device isn't currently trusted, or when the client didn't
+    present a trust token (e.g. a non-trusted session — nothing to rotate). A *mismatched*
+    token is a theft signal: clear the trust so the stolen secret can't keep skipping 2FA.
+    The trust *window* (``trusted_until``) is preserved, never slid — trust is an absolute,
+    time-boxed grant.
+    """
+    if device.trust_token_hash is None or device.trusted_until is None:
+        return None
+    if _as_utc(device.trusted_until) <= datetime.now(UTC):
+        return None
+    if not trust_token:
+        return None
+    if not secrets.compare_digest(device.trust_token_hash or "", _hash(trust_token)):
+        device.trust_token_hash = None
+        device.trusted_until = None
+        log.warning(
+            "refresh.device_trust_mismatch",
+            device_id=str(device.id),
+            user_id=str(user_id),
+        )
+        return None
+    rotated = secrets.token_urlsafe(32)
+    device.trust_token_hash = _hash(rotated)
+    return rotated
+
+
 def _issue_session(
-    session: Session, user: User, *, ip: str | None, user_agent: str | None
+    session: Session,
+    user: User,
+    *,
+    ip: str | None,
+    user_agent: str | None,
+    device: Device | None,
+    remember: bool,
+    grant_trust: bool,
+    platform: str,
+    totp_enabled: bool,
 ) -> IssuedSession:
     cfg = current_app.config
     household_id, role = _active_membership(session, user.id)
@@ -365,19 +532,63 @@ def _issue_session(
         household_id=household_id,
         role=role,
     )
+
+    now = datetime.now(UTC)
+    refresh_ttl_days = cfg["REFRESH_TOKEN_TTL_DAYS"] if remember else cfg["SHORT_REFRESH_TTL_DAYS"]
+
+    # Mint a fresh device identity only when we don't already recognise one (an existing
+    # device already holds its identity token on the client).
+    device_id_token: str | None = None
+    if device is None:
+        device_id_token = secrets.token_urlsafe(32)
+        device = devices_repo.create(
+            session,
+            user_id=user.id,
+            device_id_hash=_hash(device_id_token),
+            name=device_name(user_agent, platform),
+            platform=platform,
+            user_agent=user_agent,
+            last_ip=ip,
+            refresh_ttl_days=refresh_ttl_days,
+            remember=remember,
+        )
+
+    device.remember = remember
+    device.refresh_ttl_days = refresh_ttl_days
+    # Absolute cap only for non-remembered sessions (security: a short session truly dies).
+    device.family_expires_at = None if remember else now + timedelta(days=refresh_ttl_days)
+    device.platform = platform
+    device.last_seen_at = now
+    device.last_ip = ip
+    if user_agent:
+        device.user_agent = user_agent[:400]
+
+    # Trust (2FA-skip) is granted only when the user opted in AND 2FA is actually on — there
+    # is nothing to skip otherwise. Mint a fresh secret bound to its own window.
+    trust_token: str | None = None
+    if grant_trust and totp_enabled:
+        trust_token = secrets.token_urlsafe(32)
+        device.trust_token_hash = _hash(trust_token)
+        device.trusted_until = now + timedelta(days=cfg["DEVICE_TRUST_TTL_DAYS"])
+
     issued = refresh_tokens.issue(
         session,
         user_id=user.id,
-        ttl_days=cfg["REFRESH_TOKEN_TTL_DAYS"],
+        ttl_days=refresh_ttl_days,
         ip=ip,
         user_agent=user_agent,
         household_id=household_id,
+        device_id=device.id,
+        family_expires_at=device.family_expires_at,
     )
     return IssuedSession(
         access_token=access,
         refresh_token=issued.raw_token,
         csrf_token=issue_csrf_token(),
         user=user,
+        remember=remember,
+        device_id_token=device_id_token,
+        trust_token=trust_token,
     )
 
 

@@ -53,6 +53,9 @@ const billingCycleSchema = z.enum(["MONTHLY", "QUARTERLY", "YEARLY", "WEEKLY", "
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1),
+  // "Remember me on this device" — drives a persistent session and (when 2FA is on) lets the
+  // device skip the next TOTP step. Optional with a safe default so callers can omit it.
+  rememberMe: z.boolean().default(false),
 });
 
 // Confirm-password mismatch carries a stable `params.i18n` key (no English leaks) that each

@@ -10,10 +10,13 @@ import {
   clearAccessToken,
   configureApiClient,
   getGetMeQueryKey,
+  setOnSessionEstablished,
   setOnSessionExpired,
 } from '@homeops/api-client';
+import { Platform } from 'react-native';
 
 import { queryClient } from './query';
+import { secureDeviceIdStore, secureDeviceTrustStore } from './secure-device-store';
 import { secureRefreshStore } from './secure-refresh-store';
 
 /**
@@ -33,6 +36,12 @@ configureApiClient({
   authTransport: 'bearer',
   readCsrfToken: () => null,
   refreshTokenStore: secureRefreshStore,
+  // Device registration + "remember me" (feature plan §Device): the identity + 2FA-bypass
+  // secrets ride in headers (web uses cookies) and persist in the keychain. The platform is
+  // reported so the backend labels the device and applies the right CHECK.
+  deviceIdStore: secureDeviceIdStore,
+  deviceTrustStore: secureDeviceTrustStore,
+  devicePlatform: Platform.OS === 'ios' ? 'ios' : 'android',
 });
 
 /**
@@ -49,3 +58,15 @@ export function clearSession() {
 }
 
 setOnSessionExpired(clearSession);
+
+// A fresh login / 2FA-verify minted a session. `clearSession` (above) may have cached a stale
+// `me = null` that, while still "fresh" (staleTime), would bounce the just-authenticated user
+// back to the login stack. Drop a null `me` so the guard refetches; refetch a cached user.
+setOnSessionEstablished(() => {
+  const key = getGetMeQueryKey();
+  if (queryClient.getQueryData(key)) {
+    void queryClient.invalidateQueries({ queryKey: key });
+  } else {
+    queryClient.removeQueries({ queryKey: key });
+  }
+});
